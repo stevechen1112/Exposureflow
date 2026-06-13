@@ -22,9 +22,9 @@
 
 | Phase | 名稱 | 狀態 | Commit | 完成日期 | 備註 |
 |-------|------|------|--------|----------|------|
-| 0 | 產品核心定義 | completed | (see git log) | 2026-06-14 | EF-0001、EF-0002 |
-| 1 | 多租戶基礎架構 | pending | — | — | Repo 骨架已存在 |
-| 2 | 資料接入層 | pending | — | — | |
+| 0 | 產品核心定義 | completed | 791ec51 | 2026-06-14 | EF-0001、EF-0002 |
+| 1 | 多租戶基礎架構 | completed | — | 2026-06-14 | EF-0101–0104 |
+| 2 | 資料接入層 | in_progress | — | — | EF-0201–0205 |
 | 3 | Exposure Core | pending | — | — | |
 | 4 | Topic Graph | pending | — | — | |
 | 5 | SERP Matrix | pending | — | — | |
@@ -65,6 +65,35 @@
 
 - 無（Phase 0 為定義階段，無程式碼變更）
 
+---
+
+### Phase 1 — 多租戶基礎架構
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- 租戶模型與 Alembic migration（`apps/api/exposureflow_api/models/`、`alembic/versions/001_initial_tenant.py`）
+- 租戶 API（workspaces、sites、members、invitations、integrations、api-keys、jobs）
+- RBAC 權限矩陣（`auth/permissions.py`）
+- Celery job 基礎（`jobs/`）
+- Audit log helper（`common/audit.py`）
+- 2FA / impersonation endpoints（`auth/router.py`）
+- 整合測試（`tests/test_tenant_isolation.py`）
+- `docs/product/phase-1-review.md`
+
+**驗收證據：**
+
+- EF-0101–0104 檢查表全數 PASS（見 `phase-1-review.md`）
+- `ruff check exposureflow_api` 通過
+- CI 含 Postgres service 執行 pytest
+
+**已知限制：**
+
+- 生產認證待 Phase 11 接入 Clerk
+- Job handler 為佔位，實際 connector 邏輯於 Phase 2
+
 **下一 Phase 前置：**
 
-- 開始 Phase 1：Account / Workspace / RBAC / Job / Audit / tenant isolation
+- 開始 Phase 2：GSC / GA4 / SERP / Tech SEO / Bing connectors

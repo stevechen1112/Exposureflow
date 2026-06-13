@@ -1,1 +1,3 @@
-"""tenants module — see exposureflow-development-plan.md."""
+from exposureflow_api.tenants.router import router
+
+__all__ = ["router"]
