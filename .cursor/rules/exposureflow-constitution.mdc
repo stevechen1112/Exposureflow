@@ -1,0 +1,34 @@
+---
+description: ExposureFlow 憲章四原則 — 唯一執行準則，禁止 MVP/縮減範圍
+alwaysApply: true
+---
+
+# ExposureFlow 憲章（強制）
+
+完整版：`AGENTS.md`。以下四點為使用者訂立的最高原則，必須逐字遵循。
+
+## 原則 1：按計畫 Phase 0→14 逐步實作
+
+完成當前 Phase 驗收後才進下一 Phase。僅必要時可調整（記錄於 phase-log），禁止跳 Phase、禁止 MVP 捷徑。
+
+## 原則 2：每 Phase → 完整 Code Review → 修復 → Commit
+
+驗收單位 = 一個 Phase。通過後直接進下一 Phase。**不需**每 Phase 向使用者確認或等待批准。
+
+## 原則 3：完整作法
+
+目標是 Phase 0–14 全部完成的完整產品。**禁止** MVP、精簡版、stub、最小做法、省略測試/migration/tenant/RBAC。
+
+## 原則 4：自主推進，完整實作後才回報
+
+Phase 0 起持續工作，過程中不請示、不回報進度。僅 secret/破壞性操作/無法推斷的商業決策可暫停。Session 斷開時完成當前 Phase commit 後續接。**唯一回報**：Phase 0–14 全部完成後一次總報告。
+
+## 禁止
+
+MVP、MVP-Dev、Beta/GA 分層交付、先簡後全、Phase 內做一部分冒充完成。
+
+## 規格與紀錄
+
+- 計畫：`docs/product/exposureflow-development-plan.md`
+- 進度：`docs/product/phase-log.md`
+- 技術棧：FastAPI + PostgreSQL + Celery + Next.js 15 + Clerk + Stripe

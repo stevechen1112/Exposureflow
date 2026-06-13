@@ -3080,7 +3080,871 @@ ContentFlow/src/contentflow/scheduler.py
 
 ---
 
-## 十六、最終結論
+## 十六、開發前補強規格與缺口修訂
+
+本章用來補齊前述計畫中仍不足以直接開發的細節。若本章與前文的概念描述或早期建議不一致，**以本章與第十一章「RD 直接開發交付規格」為第一版開發權威規格**。
+
+### 1. 規格權威與範圍收斂
+
+為避免 RD 在技術選型與產品範圍上反覆決策，第一版開發採用以下固定判斷：
+
+- Backend 固定採用 Python FastAPI，不再保留 NestJS 作為第一版候選。
+- Queue / Worker 第一版固定採用 Redis + Celery；Temporal 僅作為未來大型工作流升級選項，不納入第一版必要範圍。
+- Auth 第一版正式商用環境採用 Clerk 作為身分提供者，FastAPI 驗證 Clerk JWT，並在 JWT claims 或後端 membership 查詢中取得 workspace role。Local / test 環境可使用 dev signed JWT，但 production 不使用自建密碼系統。
+- 第十一章的 repo 結構為工程實作權威；第五章與第九章的 repo 結構僅作為概念階段參考。
+- 第六章為概念模型，第十一章與本章的 database schema 為 migration 實作權威。
+- `packages/connectors`、`packages/exposure-core`、`packages/execution-adapters`、`packages/shared` 為 Python packages。
+- `packages/shared-types`、`packages/ui`、`packages/sdk` 為 TypeScript packages。
+
+### 2. 執行範圍（以憲章為準，不採 MVP 分層）
+
+本專案**不採用 MVP、Beta、GA 或任何縮減版交付路線**。
+
+執行方式以根目錄 **`AGENTS.md` 憲章四原則**為最高準則：
+
+1. 依 **Phase 0 → Phase 14** 逐步完整實作，完成當前 Phase 驗收後才進入下一 Phase。
+2. 每 Phase 結束執行完整 Code Review、修復補正、Commit；**不需**每 Phase 向使用者確認。
+3. 每 Phase 做計畫要求的**完整作法**，禁止最小實作、stub 或「之後再補」。
+4. 自 Phase 0 起自主推進，**僅在 Phase 0–14 全部完成後**向使用者做一次總回報。
+
+交付目標 = 開發計畫**第十章「正式可對外營運產品定義」**與 **Phase 0–14 全部驗收標準**一次到位，包含：
+
+- 多租戶 SaaS、Billing、Usage、Internal Admin
+- GSC / GA4 / SERP / Bing / Tech SEO 全接入
+- Exposure Core、Topic Graph、SERP Matrix、AI Visibility、Decision、Execution
+- Dashboard / UX、Reporting、Client Portal、Production Readiness
+
+若本章前文或其他章節曾出現 MVP 分層描述，**以 `AGENTS.md` 為準，該描述不適用於本專案執行**。
+
+### 3. 補強資料庫 Schema
+
+以下 schema 補齊第六章已有概念但第十一章尚未落地的資料表。所有表若屬於業務資料，必須包含 `workspace_id`，並建立 `workspace_id` index。
+
+#### 3.1 Search Surfaces
+
+```text
+search_surfaces
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id null
+- name text not null
+- surface_type text not null check in ('google','bing','chatgpt_search','perplexity','copilot','google_ai_overview','image','video')
+- country text not null default 'TW'
+- language text not null default 'zh-TW'
+- device text not null default 'desktop'
+- enabled boolean not null default true
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+用途：
+
+- 管理不同搜尋場域、國家、語言與裝置。
+- SERP snapshot、AI probe 與 dashboard aggregation 均需可回溯 surface。
+
+#### 3.2 Topic Nodes
+
+```text
+topic_nodes
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- topic_cluster_id uuid fk topic_clusters.id
+- keyword text not null
+- intent text null check in ('informational','commercial','transactional','navigational','local','unknown')
+- keyword_level text not null check in ('head','mid_tail','long_tail')
+- search_context text null
+- current_best_url text null
+- exposure_asset_id uuid fk exposure_assets.id null
+- status text not null check in ('covered','gap','cannibalized','stale','blocked')
+- impressions bigint not null default 0
+- clicks bigint not null default 0
+- avg_position numeric(8,3) null
+- evidence_json jsonb not null default '{}'
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+必要索引：
+
+- `topic_nodes(workspace_id, topic_cluster_id)`
+- `topic_nodes(site_id, keyword)`
+- `topic_nodes(site_id, status)`
+
+#### 3.3 SERP Slot Targets
+
+```text
+serp_slot_targets
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- opportunity_id uuid fk exposure_opportunities.id null
+- topic_cluster_id uuid fk topic_clusters.id null
+- keyword text not null
+- slot_type text not null
+- target_status text not null check in ('target','achieved','blocked','not_applicable')
+- current_owner text null
+- current_owner_url text null
+- recommended_action text null
+- evidence_json jsonb not null default '{}'
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+用途：
+
+- 將 SERP Matrix 從「觀察結果」延伸為「目標版位管理」。
+- Roadmap Builder 可依 target status 排出 snippet、PAA、image、video、product 等行動。
+
+#### 3.4 AI Citations
+
+```text
+ai_citations
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- ai_probe_run_id uuid fk ai_probe_runs.id null
+- surface text not null
+- prompt text not null
+- cited_url text not null
+- cited_domain text null
+- cited_title text null
+- citation_context text null
+- is_own_site boolean not null default false
+- is_third_party_about_brand boolean not null default false
+- is_competitor boolean not null default false
+- captured_at timestamptz not null
+- created_at timestamptz not null
+```
+
+用途：
+
+- `ai_probe_runs.cited_urls_json` 保存原始抽取結果。
+- `ai_citations` 提供可查詢、可統計、可進 dashboard 的正規化資料。
+
+#### 3.5 Brand Entity / SERPO
+
+```text
+brand_entities
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- canonical_name text not null
+- aliases_json jsonb not null default '[]'
+- description text null
+- official_profiles_json jsonb not null default '[]'
+- entity_consistency_score numeric(5,2) not null default 0
+- created_at timestamptz not null
+- updated_at timestamptz not null
+
+brand_mentions
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- source_url text not null
+- source_domain text null
+- source_type text not null check in ('media','forum','social','directory','review','partner','ai_answer','other')
+- mention_text text not null
+- linked boolean not null default false
+- sentiment text null check in ('positive','neutral','negative','wrong_info','unknown')
+- authority_score numeric(5,2) not null default 0
+- relevance_score numeric(5,2) not null default 0
+- captured_at timestamptz not null
+- created_at timestamptz not null
+
+serpo_records
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- brand_query text not null
+- keyword text null
+- surface text not null default 'google'
+- first_page_positive_count int not null default 0
+- first_page_neutral_count int not null default 0
+- first_page_negative_count int not null default 0
+- first_page_wrong_info_count int not null default 0
+- recommended_actions_json jsonb not null default '[]'
+- captured_at timestamptz not null
+- created_at timestamptz not null
+```
+
+#### 3.6 Competitors
+
+```text
+competitors
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- name text not null
+- domain text not null
+- aliases_json jsonb not null default '[]'
+- notes text null
+- active boolean not null default true
+- created_at timestamptz not null
+- updated_at timestamptz not null
+- unique(workspace_id, site_id, domain)
+```
+
+用途：
+
+- `serp_slots.is_competitor`、`ai_citations.is_competitor`、`AIProbeRun.competitor_mentions_json` 必須依此表判斷，不可只靠硬編碼 domain。
+
+#### 3.7 Technical Issues
+
+```text
+technical_issues
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- exposure_asset_id uuid fk exposure_assets.id null
+- url text null
+- issue_type text not null
+- severity text not null check in ('low','medium','high','critical')
+- status text not null check in ('open','planned','fixed','ignored','monitoring')
+- source text not null check in ('crawler','gsc','manual','provider','system')
+- description text not null
+- recommended_action text null
+- evidence_json jsonb not null default '{}'
+- first_seen_at timestamptz not null
+- last_seen_at timestamptz not null
+- fixed_at timestamptz null
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+必要 issue types：
+
+- `robots_blocked`
+- `noindex`
+- `canonical_mismatch`
+- `redirect_chain`
+- `not_found`
+- `server_error`
+- `schema_error`
+- `missing_sitemap`
+- `sitemap_stale`
+- `ai_crawler_blocked`
+- `core_web_vitals_poor`
+- `javascript_rendering_risk`
+
+#### 3.8 Job Definitions / Job Runs
+
+```text
+job_definitions
+- id uuid pk
+- job_type text unique not null
+- description text null
+- default_schedule text null
+- enabled boolean not null default true
+- max_retries int not null default 3
+- created_at timestamptz not null
+- updated_at timestamptz not null
+
+job_runs
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id null
+- job_definition_id uuid fk job_definitions.id null
+- job_type text not null
+- status text not null check in ('queued','running','succeeded','failed','cancelled','dead_letter')
+- idempotency_key text null
+- input_json jsonb not null default '{}'
+- output_json jsonb not null default '{}'
+- provider text null
+- provider_cost_cents int not null default 0
+- error_code text null
+- error_message text null
+- started_at timestamptz null
+- completed_at timestamptz null
+- created_at timestamptz not null
+```
+
+用途：
+
+- `execution_jobs` 記錄業務執行任務。
+- `job_runs` 記錄背景工作實際執行狀態與 provider 成本。
+
+#### 3.9 Action Outcomes
+
+```text
+action_outcomes
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id
+- execution_job_id uuid fk execution_jobs.id
+- exposure_asset_id uuid fk exposure_assets.id null
+- opportunity_id uuid fk exposure_opportunities.id null
+- baseline_snapshot_json jsonb not null default '{}'
+- followup_7d_json jsonb not null default '{}'
+- followup_28d_json jsonb not null default '{}'
+- followup_90d_json jsonb not null default '{}'
+- outcome_status text not null check in ('improved','neutral','declined','insufficient_data','monitoring')
+- exposure_delta bigint not null default 0
+- serp_slot_delta int not null default 0
+- ai_citation_delta int not null default 0
+- notes text null
+- created_at timestamptz not null
+- updated_at timestamptz not null
+```
+
+#### 3.10 Onboarding State
+
+```text
+onboarding_steps
+- id uuid pk
+- workspace_id uuid fk workspaces.id
+- site_id uuid fk sites.id null
+- step_key text not null
+- status text not null check in ('pending','completed','skipped','blocked')
+- completed_by uuid fk users.id null
+- completed_at timestamptz null
+- metadata_json jsonb not null default '{}'
+- created_at timestamptz not null
+- updated_at timestamptz not null
+- unique(workspace_id, site_id, step_key)
+```
+
+必要 step keys：
+
+- `workspace_created`
+- `site_created`
+- `gsc_connected`
+- `first_gsc_sync_completed`
+- `first_assets_generated`
+- `first_opportunities_generated`
+- `first_decision_approved`
+- `first_report_generated`
+
+### 4. 補強 API Contract
+
+第十一章 API Contract 需補以下 endpoints。
+
+#### 4.1 Auth
+
+正式商用版採 Clerk，因此 ExposureFlow API 不負責密碼登入，但需提供 session bootstrap 與 dev auth。
+
+```text
+GET    /api/v1/auth/session
+POST   /api/v1/auth/dev-token              # local / test only, production disabled
+POST   /api/v1/auth/clerk/webhook
+```
+
+驗收：
+
+- Production 環境拒絕 `/auth/dev-token`。
+- Clerk webhook 可同步 user email、name、status。
+- `/auth/session` 回傳目前 user、可用 workspaces、role 與 feature flags。
+
+#### 4.2 Onboarding / Settings
+
+```text
+GET    /api/v1/onboarding?site_id=
+POST   /api/v1/onboarding/{step_key}/complete
+POST   /api/v1/onboarding/{step_key}/skip
+
+GET    /api/v1/settings/workspace
+PATCH  /api/v1/settings/workspace
+GET    /api/v1/settings/site?site_id=
+PATCH  /api/v1/settings/site/{site_id}
+```
+
+#### 4.3 Technical Issues
+
+```text
+GET    /api/v1/technical/issues?site_id=&severity=&status=&type=
+GET    /api/v1/technical/issues/{issue_id}
+POST   /api/v1/technical/issues/{issue_id}/ignore
+POST   /api/v1/technical/issues/{issue_id}/reopen
+POST   /api/v1/technical/audits/run
+```
+
+#### 4.4 Brand / SERPO
+
+```text
+GET    /api/v1/brand/entities?site_id=
+POST   /api/v1/brand/entities
+PATCH  /api/v1/brand/entities/{entity_id}
+
+GET    /api/v1/brand/mentions?site_id=&sentiment=&source_type=
+POST   /api/v1/brand/mentions/import
+
+GET    /api/v1/serpo/records?site_id=&keyword=
+POST   /api/v1/serpo/snapshots/run
+```
+
+#### 4.5 Competitors
+
+```text
+GET    /api/v1/competitors?site_id=
+POST   /api/v1/competitors
+PATCH  /api/v1/competitors/{competitor_id}
+DELETE /api/v1/competitors/{competitor_id}
+```
+
+#### 4.6 Action Outcomes
+
+```text
+GET    /api/v1/outcomes?site_id=&status=
+GET    /api/v1/outcomes/{outcome_id}
+POST   /api/v1/outcomes/{outcome_id}/refresh-followup
+```
+
+#### 4.7 Cursor Pagination 格式
+
+所有 list API 採相同 response wrapper：
+
+```json
+{
+  "data": [],
+  "pagination": {
+    "next_cursor": "base64url-encoded-cursor",
+    "has_more": true,
+    "limit": 50
+  }
+}
+```
+
+Cursor 內容：
+
+```json
+{
+  "sort": "created_at",
+  "direction": "desc",
+  "last_value": "2026-06-14T00:00:00Z",
+  "last_id": "uuid"
+}
+```
+
+### 5. 補強前端頁面規格
+
+第十一章前端規格需補以下路由。
+
+```text
+/app/[workspaceId]/onboarding
+/app/[workspaceId]/settings
+/app/[workspaceId]/settings/members
+/app/[workspaceId]/settings/integrations
+/app/[workspaceId]/settings/billing
+/app/[workspaceId]/sites/[siteId]/exposure-map
+/app/[workspaceId]/sites/[siteId]/technical-issues
+/app/[workspaceId]/sites/[siteId]/brand
+/app/[workspaceId]/sites/[siteId]/serpo
+/app/[workspaceId]/sites/[siteId]/outcomes
+```
+
+#### Exposure Map
+
+功能：
+
+- 顯示 TopicCluster 清單、coverage score、total impressions、AI visibility score。
+- 顯示每個 cluster 的 pillar、cluster pages、gap、stale、cannibalized nodes。
+- 可從 gap 直接建立 ExposureOpportunity。
+- 可從 cannibalized node 產生 merge / differentiate / redirect candidate。
+
+#### Action Outcomes
+
+功能：
+
+- 顯示每個 approved action 的 baseline、7d、28d、90d。
+- 顯示 impressions delta、SERP slot delta、AI citation delta。
+- 可標記 action pattern 是否值得複製。
+
+#### Settings / Integrations
+
+功能：
+
+- 管理 GSC、GA4、WordPress、SERP provider、OpenAI、Perplexity、Bing Webmaster credentials。
+- 顯示 integration health、last verified time、last sync status。
+- 支援 reconnect、disconnect、manual verify。
+
+### 6. Opportunity Generator v1 規則表
+
+第一版 candidate 必須 deterministic。LLM 只能用來產生 rationale 或摘要 evidence，不可憑空新增 opportunity。
+
+| 規則 ID | 條件 | Opportunity Type | Priority Hint | Evidence |
+|---|---|---|---|---|
+| OG-001 | query impressions 高於 site P75，avg position 11-30，已有 current_url | `refresh_page` | high | GSC query/page |
+| OG-002 | query impressions 高於 site P75，avg position 4-10，SERP 有 featured snippet 但非本站 | `optimize_snippet` | high | GSC + SERP slot |
+| OG-003 | query 出現在 GSC，但 current_url 內容 brief / asset metadata 未覆蓋該 search_context | `enrich` | medium | query gap |
+| OG-004 | 同 query 有 2 個以上 URL 曝光且 position 波動 | `merge_pages` 或 `differentiate` | high | GSC URL overlap |
+| OG-005 | URL 有 impressions 但被 noindex / canonical mismatch / robots blocked | `technical_fix` | critical | TechnicalIssue |
+| OG-006 | cluster 中 topic_node status = gap，且 search volume / impressions potential 高 | `create_page` | medium/high | Topic graph |
+| OG-007 | SERP 有 PAA，且目標頁沒有對應 FAQ / answer block | `add_faq` | medium | SERP PAA |
+| OG-008 | SERP 有 image/video slot，且 ExposureAsset 無對應 image/video asset | `add_image_asset` / `add_video_asset` | medium | SERP slot |
+| OG-009 | Product / review rich result 可用，但頁面缺 Product / Review / Breadcrumb schema | `add_schema` | medium | Schema audit |
+| OG-010 | AI probe 常引用競品或第三方，本站未被引用，但本站有可補強頁 | `ai_citation_ready` | high | AIProbeRun |
+| OG-011 | AI answer 中品牌描述錯誤或過時 | `entity_fix` | high | AIProbeRun / BrandMention |
+| OG-012 | 高價值主題長期卡在 Top 10 外，且缺外部可信引用 | `third_party_citation` | medium | SERP / backlink / brand mention |
+| OG-013 | 新 URL 已上線但 7 日未被 sitemap / GSC indexed coverage 發現 | `fix_indexability` | high | sitemap / GSC |
+| OG-014 | 低 CTR 但 AI Overview / featured snippet 擠壓明顯 | `no_op` 或 `optimize_title` | low/medium | SERP density |
+| OG-015 | 舊年份內容仍有曝光但 title / content 年份過期 | `refresh_page` | medium | GSC + asset freshness |
+
+### 7. Exposure Opportunity Scorer v1
+
+第一版分數不使用黑盒 LLM。每個子分數皆輸出到 `evidence_json`，讓使用者可回溯。
+
+```text
+total_opportunity_score
+= 100
+  × search_demand_score
+  × ranking_feasibility_score
+  × serp_slot_score
+  × topic_contribution_score
+  × execution_confidence_score
+  × max(ai_citation_score, 0.7)
+  × max(zero_click_value_score, 0.7)
+```
+
+分數範圍：
+
+- 所有 score 為 0.0 至 1.0。
+- `total_opportunity_score` 儲存為 0 至 100。
+- `ai_citation_score` 與 `zero_click_value_score` 在資料不足時不得讓總分歸零，因此使用 floor 0.7。
+
+#### 子分數定義
+
+```text
+search_demand_score
+= min(1.0, log10(query_impressions_28d + 1) / log10(site_p95_query_impressions_28d + 1))
+```
+
+若無 GSC impressions，改用第三方 search volume；若兩者皆無，預設 0.3。
+
+```text
+ranking_feasibility_score
+=
+  1.0 if current_position between 4 and 10
+  0.8 if current_position between 11 and 20
+  0.6 if current_position between 21 and 30
+  0.4 if current_position between 31 and 50
+  0.3 if no current ranking but cluster authority_score >= 60
+  0.2 otherwise
+```
+
+```text
+serp_slot_score
+= min(1.0, targetable_slot_count / 4)
+```
+
+`targetable_slot_count` 包含 featured snippet、PAA、image、video、product、forum、AI overview presence，但須扣除明顯不可競爭的大型平台壟斷 slot。
+
+```text
+topic_contribution_score
+=
+  1.0 if topic_node.status = gap and business_priority >= 4
+  0.8 if opportunity improves pillar or high-impression cluster page
+  0.6 if opportunity improves supporting cluster page
+  0.4 otherwise
+```
+
+```text
+execution_confidence_score
+=
+  0.9 for refresh_page / add_faq / add_schema with existing asset
+  0.8 for optimize_snippet
+  0.7 for technical_fix when issue type is deterministic
+  0.6 for create_page
+  0.5 for third_party_citation / outreach
+  0.4 for AI citation tasks without stable source data
+```
+
+```text
+ai_citation_score
+=
+  1.0 if AI probe cites competitor or third-party and query intent is informational/commercial
+  0.8 if prompt set exists and our brand not mentioned
+  0.6 if AI surface likely but no probe data
+  0.3 if query unlikely to trigger AI answer
+```
+
+```text
+zero_click_value_score
+=
+  1.0 if SERP contains AI overview / featured snippet / PAA / knowledge panel
+  0.8 if SERP contains image/video/product result
+  0.6 if normal organic SERP
+```
+
+Priority mapping：
+
+- `critical`：score >= 75 或 technical issue severity = critical。
+- `high`：score >= 55。
+- `medium`：score >= 30。
+- `low`：score < 30。
+
+### 8. Topic Graph v1 實作規格
+
+Topic Graph v1 不追求完美語意分群，先追求穩定、可回溯、可人工修正。
+
+輸入：
+
+- GSC query/page rows。
+- URL path hierarchy。
+- SERP top 10 URL similarity。
+- Page title、H1、meta description。
+- Optional embedding vectors。
+
+第一版流程：
+
+1. 以 GSC query co-occurrence 建立 query graph：同一 URL 曝光的 query 增加邊權重。
+2. 以 SERP similarity 加權：兩個 query 的 Google top 10 URL overlap >= 30% 時增加邊權重。
+3. 以 URL hierarchy 加權：同一路徑分類下的 pages 增加 cluster hint。
+4. 若 embedding 可用，使用 cosine similarity >= 0.78 增加語意邊權重。
+5. 使用 Leiden / Louvain community detection 或等效 graph clustering。
+6. 為每個 cluster 選 pillar candidate。
+7. LLM 僅用於命名 cluster、摘要 intent 與解釋 evidence，不得覆蓋 deterministic cluster id。
+
+Pillar candidate 選擇：
+
+```text
+pillar_score
+= normalized_impressions
++ normalized_internal_links
++ normalized_url_depth_score
++ title_keyword_match
++ asset_type_bonus
+```
+
+`asset_type_bonus`：
+
+- pillar_page：+0.3
+- guide / comparison_page：+0.2
+- product_page：+0.1
+- faq / thin page：+0
+
+人工調整：
+
+- 使用者可將 node 移至其他 cluster。
+- 每次人工調整需寫入 audit log。
+- Topic Graph rebuild 不得覆蓋人工鎖定的 cluster assignment。
+
+### 9. AI Probe v1 實作規格
+
+AI 搜尋資料穩定性不足，因此第一版支援三種 probe mode：
+
+```text
+probe_mode:
+  automated_provider
+  assisted_manual
+  manual_import
+```
+
+#### automated_provider
+
+可用於 Perplexity API、支援 citation 的 SERP / AI provider，或未來官方可用的搜尋 API。
+
+要求：
+
+- 必須保存 raw response。
+- 必須標記 provider、model、run_at。
+- 必須抽取 cited URLs、mentioned brands、competitor mentions。
+
+#### assisted_manual
+
+系統產生 prompt set 與填寫表單，使用者手動到 ChatGPT Search、Google AI Mode、Bing Copilot 查詢後貼上答案與 citation。
+
+要求：
+
+- 表單必須支援 answer_text、cited_urls、mentioned_brands、sentiment。
+- 仍寫入 `ai_probe_runs` 與 `ai_citations`。
+
+#### manual_import
+
+支援 CSV / JSON 匯入外部工具或人工整理結果。
+
+最小 CSV 欄位：
+
+```text
+surface,prompt,answer_text,cited_urls,mentioned_brands,competitor_mentions,sentiment,run_at
+```
+
+驗收：
+
+- 即使沒有任何官方 ChatGPT Search / Google AI Overview API，AI Visibility v1 仍可用 assisted manual 運作。
+- 自動化 provider 失敗不影響其他 probe mode。
+
+### 10. SERP Slot Extractor v1
+
+Provider response 必須先保存到 `serp_query_snapshots.raw_json`，再由 extractor 轉成 `serp_slots`。
+
+最小 slot mapping：
+
+- organic：provider organic results。
+- featured_snippet：answer box / featured snippet / position zero。
+- paa：people also ask questions。
+- image：image pack / image results。
+- video：video carousel / video results。
+- product：shopping / product organic units。
+- forum：Reddit、Quora、Dcard、PTT、Mobile01、StackExchange 或可配置 forum domain list。
+- ai_overview：provider 明確回傳 AI overview presence 時才標記；若 provider 不支援，不得憑猜測標記 achieved，只能標記 unknown。
+
+Owner classification：
+
+1. 若 domain 等於 Site domain，`is_own_site = true`。
+2. 若 domain 存在於 `competitors`，`is_competitor = true`。
+3. 若 source_type 屬 media/forum/review/partner 且提及品牌，`is_third_party = true`。
+4. 其餘為 platform / unknown。
+
+### 11. 補強開發票與 Backlog
+
+第九章與第十一章 Backlog 需新增以下 tickets。
+
+#### Phase 2 補強
+
+- EF-0205 建立 Bing Webmaster Connector。
+- EF-0206 建立 Brand Web Presence Connector。
+- EF-0207 建立 Competitor Settings。
+- EF-0208 建立 Integration Health Check Job。
+
+#### Phase 3 補強
+
+- EF-0304 建立 TechnicalIssue 模型與 API。
+- EF-0305 建立 Competitor 模型與 owner classification service。
+- EF-0306 建立 Opportunity Generator v1 規則引擎。
+- EF-0307 建立 Scorer evidence trace。
+
+#### Phase 4 補強
+
+- EF-0404 建立 TopicNode schema / API。
+- EF-0405 建立 manual cluster assignment lock。
+
+#### Phase 5 補強
+
+- EF-0504 建立 SERPSlotTarget schema / API。
+- EF-0505 建立 SERP owner classification。
+
+#### Phase 6 補強
+
+- EF-0605 建立 assisted manual AI probe flow。
+- EF-0606 建立 manual AI probe import。
+- EF-0607 建立 normalized AICitation table。
+- EF-0608 建立 SERPO Monitor。
+
+#### Phase 8 補強
+
+- EF-0805 建立 Refresh Adapter。
+- EF-0806 建立 Schema Enhancement Adapter。
+- EF-0807 建立 Technical Fix Adapter。
+- EF-0808 建立 Outreach Manual Task Adapter。
+- EF-0809 移植 ForgeBase Publisher（若 ForgeBase integration 被列入當期範圍）。
+
+#### Phase 9 補強
+
+- EF-0905 建立 Exposure Map UI。
+- EF-0906 建立 Technical Issues UI。
+- EF-0907 建立 Action Outcomes UI。
+- EF-0908 建立 Settings / Integrations UI。
+- EF-0909 建立 Onboarding UI。
+- EF-0910 建立 Brand / SERPO UI。
+
+#### Phase 13 補強
+
+- EF-1304 建立 Integration Health Dashboard。
+- EF-1305 建立 Provider Cost Dashboard。
+- EF-1306 建立 Customer Onboarding Funnel。
+
+### 12. ContentFlow 來源與移植前置條件
+
+在執行 EF-CF-001 至 EF-CF-004 前，必須完成以下前置確認：
+
+- 確認 ContentFlow repo 本機路徑或 Git remote。
+- 確認可移植檔案的 commit SHA。
+- 確認原始碼 license / ownership 允許移植。
+- 列出每個移植檔案的外部依賴與環境變數。
+- 移植時不得直接複製 ContentFlow settings、database model、scheduler singleton。
+- 每個移植 adapter 必須加入 contract test，證明可在沒有 ContentFlow app context 的情況下運作。
+
+移植紀錄格式：
+
+```text
+source_file:
+source_commit:
+target_file:
+porting_type: direct_port | refactor | logic_translation
+removed_dependencies:
+new_interfaces:
+tests_added:
+known_limitations:
+```
+
+### 13. Plan / Quota 初始規格
+
+`plans.limits_json` 第一版固定使用以下 key：
+
+```json
+{
+  "workspace_limit": 1,
+  "site_limit": 1,
+  "user_limit": 3,
+  "gsc_rows_per_month": 100000,
+  "serp_snapshots_per_month": 500,
+  "ai_probe_runs_per_month": 100,
+  "report_exports_per_month": 10,
+  "storage_gb": 5,
+  "white_label_enabled": false,
+  "client_portal_enabled": false,
+  "api_access_enabled": false
+}
+```
+
+建議預設方案：
+
+| Plan | workspace | site | users | GSC rows/月 | SERP/月 | AI probe/月 | 白標 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Starter | 1 | 1 | 3 | 100k | 500 | 100 | No |
+| Professional | 3 | 5 | 10 | 1M | 5k | 1k | No |
+| Agency | 25 | 50 | 50 | 10M | 50k | 10k | Yes |
+| Enterprise | custom | custom | custom | custom | custom | custom | Yes |
+
+Overage 於 Phase 11 實作 usage 記錄；自動 overage 計費依 Phase 11 驗收標準一併完成。
+
+### 14. Report Template v1
+
+Monthly Exposure Report 至少包含：
+
+- Executive Summary。
+- Total organic impressions 與 MoM 變化。
+- Query coverage、page coverage、Top 3 / Top 10 / Top 20。
+- Topic cluster performance。
+- SERP slot wins / losses。
+- AI citation / brand mention observations。
+- Technical blockers。
+- Completed actions。
+- Action outcomes（若已有 7d / 28d / 90d 資料）。
+- Next month roadmap。
+
+輸出格式（Phase 10 驗收須全部支援）：
+
+- Markdown
+- PDF
+- DOCX（含 Agency 白標場景）
+
+### 15. SLO、Retention 與通知基準
+
+第一版營運基準：
+
+- API availability target：99.5% monthly。
+- Dashboard p95 latency：2.5 秒內。
+- GSC sync freshness：每日同步網站需在 24 小時內完成。
+- Job success visibility：所有 failed jobs 必須在 internal admin 可查。
+- Daily database backup：保留 30 天。
+- Audit logs：至少保留 365 天。
+- Raw provider snapshots：至少保留 180 天，Enterprise 可客製。
+- Deleted workspace soft delete：保留 30 天後 hard delete。
+
+通知 trigger：
+
+- GSC sync failed 3 次。
+- SERP provider quota 使用超過 80%。
+- AI probe provider 連續失敗。
+- Report export ready。
+- Client approval required。
+- Billing payment failed。
+- Workspace usage over quota。
+
+---
+
+## 十七、最終結論
 
 若完全不考慮開發成本與時間，ExposureFlow 應該乾淨重寫產品核心，並且從一開始就以「可正式對外營運的多租戶 SaaS」為產品規格，而不是以縮小版產品或單站工具為規格。
 
