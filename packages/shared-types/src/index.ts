@@ -7,7 +7,8 @@ export type WorkspaceRole =
   | "editor"
   | "analyst"
   | "client_viewer"
-  | "billing_admin";
+  | "billing_admin"
+  | "support_admin";
 
 export type OpportunityStatus =
   | "open"

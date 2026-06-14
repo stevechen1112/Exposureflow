@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ActionCandidate } from "@exposureflow/shared-types";
 import { PageHeader } from "@/components/PageHeader";
+import { parseApiError } from "@/components/ForbiddenState";
 import { useSiteContext } from "@/lib/hooks";
+import { useWorkspaceAuth } from "@/lib/auth-context";
 
 const RISK_CLASS: Record<string, string> = {
   critical: "badge-critical",
@@ -75,6 +77,8 @@ type FilterStatus = "pending" | "approved" | "rejected" | "deferred";
 
 export default function OpportunitiesPage() {
   const { siteId, client } = useSiteContext();
+  const { can } = useWorkspaceAuth();
+  const canDecide = can("site:write");
   const [candidates, setCandidates] = useState<ActionCandidate[]>([]);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("pending");
   const [filterRisk, setFilterRisk] = useState<string>("all");
@@ -92,7 +96,8 @@ export default function OpportunitiesPage() {
       setSelected(new Set());
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "載入失敗");
+      const msg = err instanceof Error ? err.message : "載入失敗";
+      setError(parseApiError(msg).friendly);
     } finally {
       setLoading(false);
     }
@@ -160,7 +165,11 @@ export default function OpportunitiesPage() {
     <>
       <PageHeader
         title="機會佇列"
-        subtitle="審核建議行動，批次 approve / reject / defer"
+        subtitle={
+          canDecide
+            ? "審核建議行動，批次 approve / reject / defer"
+            : "檢視建議行動（您的角色為唯讀，無法核准或拒絕）"
+        }
       />
       {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
 
@@ -199,7 +208,7 @@ export default function OpportunitiesPage() {
       </div>
 
       {/* Batch actions bar */}
-      {filterStatus === "pending" && (
+      {filterStatus === "pending" && canDecide && (
         <div className="form-row" style={{ alignItems: "center" }}>
           <button
             type="button"
@@ -241,7 +250,7 @@ export default function OpportunitiesPage() {
         <table>
           <thead>
             <tr>
-              {filterStatus === "pending" && (
+              {filterStatus === "pending" && canDecide && (
                 <th style={{ width: 32 }}>
                   <input
                     type="checkbox"
@@ -258,14 +267,14 @@ export default function OpportunitiesPage() {
               <th>風險</th>
               <th>狀態</th>
               <th>Evidence 摘要</th>
-              {filterStatus === "pending" && <th style={{ width: 160 }}>操作</th>}
+              {filterStatus === "pending" && canDecide && <th style={{ width: 160 }}>操作</th>}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
                 <td
-                  colSpan={filterStatus === "pending" ? 9 : 7}
+                  colSpan={filterStatus === "pending" ? (canDecide ? 9 : 7) : 7}
                   style={{ color: "var(--muted)" }}
                 >
                   載入中…
@@ -274,7 +283,7 @@ export default function OpportunitiesPage() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={filterStatus === "pending" ? 9 : 7}
+                  colSpan={filterStatus === "pending" ? (canDecide ? 9 : 7) : 7}
                   style={{ color: "var(--muted)" }}
                 >
                   此狀態下沒有候選行動
@@ -283,7 +292,7 @@ export default function OpportunitiesPage() {
             ) : (
               filtered.map((row) => (
                 <tr key={row.id}>
-                  {filterStatus === "pending" && (
+                  {filterStatus === "pending" && canDecide && (
                     <td>
                       <input
                         type="checkbox"
@@ -313,7 +322,7 @@ export default function OpportunitiesPage() {
                   <td>
                     <EvidenceCard evidence={row.evidence_json} />
                   </td>
-                  {filterStatus === "pending" && (
+                  {filterStatus === "pending" && canDecide && (
                     <td>
                       <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
                         <button

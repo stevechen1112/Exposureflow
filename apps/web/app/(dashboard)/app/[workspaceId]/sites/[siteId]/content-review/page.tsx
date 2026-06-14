@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { parseApiError } from "@/components/ForbiddenState";
 import { useSiteContext } from "@/lib/hooks";
+import { useWorkspaceAuth } from "@/lib/auth-context";
 
 type GenerationRun = {
   id: string;
@@ -75,6 +77,8 @@ type ActivePanel =
 
 export default function ContentReviewPage() {
   const { siteId, client } = useSiteContext();
+  const { can } = useWorkspaceAuth();
+  const canReview = can("site:write");
   const [runs, setRuns] = useState<GenerationRun[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -163,7 +167,11 @@ export default function ContentReviewPage() {
     <>
       <PageHeader
         title="內容審核"
-        subtitle="Generation runs 的 claim 核驗、人工審核與發布 Gate"
+        subtitle={
+          canReview
+            ? "Generation runs 的 claim 核驗、人工審核與發布 Gate"
+            : "檢視 generation runs（您的角色無法核准或退件）"
+        }
       />
 
       {/* Summary bar */}
@@ -279,7 +287,7 @@ export default function ContentReviewPage() {
                       >
                         {panel?.type === "preview" && panel.run.id === run.id ? "收起" : "預覽"}
                       </button>
-                      {isReviewable(run.status) && (
+                      {isReviewable(run.status) && canReview && (
                         <>
                           <button
                             type="button"
@@ -336,7 +344,7 @@ export default function ContentReviewPage() {
               </span>
             </h2>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              {isReviewable(panel.run.status) && (
+              {isReviewable(panel.run.status) && canReview && (
                 <button
                   type="button"
                   className="btn btn-primary"

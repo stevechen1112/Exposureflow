@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ensureInternalAdminSession } from "@/lib/internal-api-client";
+import { ForbiddenState, parseApiError } from "@/components/ForbiddenState";
+import { createClient } from "@exposureflow/sdk";
+import { API_BASE_URL, storageKey } from "@/lib/config";
+import { isPlatformSupport } from "@/lib/permissions";
 
 const NAV = [
   { href: "/internal-admin/launch", label: "Launch Readiness" },
@@ -20,26 +23,58 @@ const NAV = [
 export default function InternalAdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [ready, setReady] = useState(false);
+  const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    ensureInternalAdminSession()
-      .then(() => setReady(true))
-      .catch((err: Error) => setError(err.message));
+    const token = localStorage.getItem(storageKey("token"));
+    if (!token) {
+      setError("請先從 /app-entry 以「平台支援」角色登入。");
+      return;
+    }
+    const client = createClient({ baseUrl: API_BASE_URL, token });
+    client
+      .getMe()
+      .then((me) => {
+        const role = (me.workspaces as Array<{ role: string }>)[0]?.role;
+        if (!isPlatformSupport(role)) {
+          setAuthorized(false);
+        } else {
+          setAuthorized(true);
+        }
+        setReady(true);
+      })
+      .catch((err: Error) => {
+        setError(parseApiError(err.message).friendly);
+        setReady(true);
+      });
   }, []);
-
-  if (error) {
-    return (
-      <main style={{ padding: "2rem" }}>
-        <p style={{ color: "var(--danger)" }}>Internal admin session failed: {error}</p>
-      </main>
-    );
-  }
 
   if (!ready) {
     return (
       <main style={{ padding: "2rem" }}>
-        <p style={{ color: "var(--muted)" }}>Loading internal admin…</p>
+        <p style={{ color: "var(--muted)" }}>驗證平台權限…</p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main style={{ padding: "2rem" }}>
+        <ForbiddenState title="無法進入平台後台" message={error} homeHref="/app-entry" homeLabel="返回登入" />
+      </main>
+    );
+  }
+
+  if (!authorized) {
+    return (
+      <main style={{ padding: "2rem" }}>
+        <ForbiddenState
+          title="此區域僅限平台支援人員"
+          message="您目前的工作區角色無法存取 Internal Admin。請使用 support@example.com（平台支援）從 /app-entry 登入。"
+          homeHref="/app-entry"
+          homeLabel="切換角色登入"
+        />
       </main>
     );
   }
@@ -54,7 +89,10 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
           padding: "1.25rem 0",
         }}
       >
-        <div style={{ padding: "0 1.25rem 1rem", fontWeight: 600 }}>ExposureFlow Ops</div>
+        <div style={{ padding: "0 1.25rem 1rem" }}>
+          <div style={{ fontWeight: 600 }}>ExposureFlow Ops</div>
+          <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.25rem" }}>平台支援後台</div>
+        </div>
         <nav>
           {NAV.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -75,6 +113,9 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
             );
           })}
         </nav>
+        <div style={{ padding: "1rem 1.25rem 0", fontSize: "0.78rem" }}>
+          <Link href="/app-entry">← 切換角色</Link>
+        </div>
       </aside>
       <main style={{ flex: 1, padding: "1.5rem 2rem" }}>{children}</main>
     </div>

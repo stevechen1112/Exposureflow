@@ -153,6 +153,7 @@ class JobRunResponse(BaseModel):
 class DevTokenRequest(BaseModel):
     email: EmailStr
     name: str = "Dev User"
+    role: str | None = None
 
 
 class DevTokenResponse(BaseModel):

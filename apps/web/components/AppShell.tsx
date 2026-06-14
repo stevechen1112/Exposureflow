@@ -2,81 +2,128 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ExposureFlowLogo } from "@exposureflow/ui";
+import { roleLabel, useWorkspaceAuth } from "@/lib/auth-context";
+import { filterNav, siteNavItems, workspaceNavItems } from "@/lib/nav-config";
+import { isPlatformSupport, canRole } from "@/lib/permissions";
+import { storageKey } from "@/lib/config";
 
-type NavItem = { href: string; label: string };
-
-function navItems(workspaceId: string, siteId: string): NavItem[] {
-  const base = `/app/${workspaceId}/sites/${siteId}`;
-  return [
-    { href: `${base}/dashboard`, label: "曝光儀表板" },
-    { href: `${base}/opportunities`, label: "機會佇列" },
-    { href: `${base}/serp-matrix`, label: "SERP 矩陣" },
-    { href: `${base}/ai-visibility`, label: "AI 能見度" },
-    { href: `${base}/exposure-map`, label: "曝光地圖" },
-    { href: `${base}/technical-issues`, label: "技術問題" },
-    { href: `${base}/outcomes`, label: "行動成果" },
-    { href: `${base}/roadmap`, label: "Roadmap" },
-    { href: `${base}/strategy`, label: "策略 Intake" },
-    { href: `${base}/keyword-pyramid`, label: "關鍵字金字塔" },
-    { href: `${base}/delivery-commitments`, label: "交付承諾" },
-    { href: `${base}/knowledge`, label: "知識庫" },
-    { href: `${base}/content-review`, label: "內容審核" },
-    { href: `${base}/brand`, label: "品牌實體" },
-    { href: `${base}/serpo`, label: "SERPO" },
-  ];
+function siteIdFromPath(pathname: string, workspaceId: string): string | undefined {
+  const m = pathname.match(new RegExp(`^/app/${workspaceId}/sites/([^/]+)`));
+  return m?.[1];
 }
 
-function workspaceNav(workspaceId: string): NavItem[] {
-  return [
-    { href: `/app/${workspaceId}/onboarding`, label: "Onboarding" },
-    { href: `/app/${workspaceId}/settings`, label: "設定" },
-    { href: `/app/${workspaceId}/settings/integrations`, label: "整合" },
-    { href: `/app/${workspaceId}/settings/members`, label: "成員" },
-    { href: `/app/${workspaceId}/settings/billing`, label: "計費" },
-    { href: `/app/${workspaceId}/agency`, label: "Agency 總覽" },
-  ];
+function resolveSiteId(pathname: string, workspaceId: string): string | undefined {
+  return siteIdFromPath(pathname, workspaceId);
 }
 
 export function AppShell({
   workspaceId,
-  siteId,
   children,
 }: {
   workspaceId: string;
-  siteId?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const siteLinks = siteId ? navItems(workspaceId, siteId) : [];
-  const wsLinks = workspaceNav(workspaceId);
+  const { loading, user, role } = useWorkspaceAuth();
+  const [navSiteId, setNavSiteId] = useState<string | undefined>();
+
+  useEffect(() => {
+    const fromPath = resolveSiteId(pathname, workspaceId);
+    if (fromPath) {
+      setNavSiteId(fromPath);
+      return;
+    }
+    const stored = localStorage.getItem(storageKey("siteId"));
+    setNavSiteId(stored ?? undefined);
+  }, [pathname, workspaceId]);
+
+  const siteLinks = navSiteId ? filterNav(siteNavItems(workspaceId, navSiteId), role) : [];
+  const wsLinks = filterNav(workspaceNavItems(workspaceId), role);
 
   return (
     <div className="layout-shell">
       <aside className="sidebar">
-        <div style={{ marginBottom: "1.5rem" }}>
+        <div style={{ marginBottom: "1.25rem" }}>
           <ExposureFlowLogo />
+          {!loading && role ? (
+            <div style={{ marginTop: "0.65rem", fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.5 }}>
+              <div>{user?.name ?? user?.email}</div>
+              <div style={{ color: "var(--accent-text)", fontWeight: 500 }}>{roleLabel(role)}</div>
+            </div>
+          ) : null}
         </div>
         <nav>
-          {siteLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname === item.href ? "active" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "1rem 0" }} />
-          {wsLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname === item.href ? "active" : undefined}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {siteLinks.length > 0 ? (
+            <>
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--muted)",
+                  marginBottom: "0.35rem",
+                  paddingLeft: "0.75rem",
+                }}
+              >
+                站點分析
+              </div>
+              {siteLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={pathname === item.href ? "active" : undefined}
+                  title={item.description}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          ) : !loading && role && canRole(role, "site:read") ? (
+            <p style={{ fontSize: "0.82rem", color: "var(--muted)", padding: "0 0.75rem" }}>
+              <Link href={`/app/${workspaceId}/onboarding`}>完成 Onboarding</Link> 以建立站點並開始分析。
+            </p>
+          ) : !loading && role ? (
+            <p style={{ fontSize: "0.82rem", color: "var(--muted)", padding: "0 0.75rem" }}>
+              您的角色無站點分析權限。
+            </p>
+          ) : null}
+          {wsLinks.length > 0 ? (
+            <>
+              <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "1rem 0" }} />
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--muted)",
+                  marginBottom: "0.35rem",
+                  paddingLeft: "0.75rem",
+                }}
+              >
+                工作區
+              </div>
+              {wsLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={pathname === item.href ? "active" : undefined}
+                  title={item.description}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          ) : null}
+          {isPlatformSupport(role) ? (
+            <>
+              <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "1rem 0" }} />
+              <Link href="/internal-admin/workspaces" className="active" style={{ fontSize: "0.88rem" }}>
+                平台營運後台 →
+              </Link>
+            </>
+          ) : null}
         </nav>
       </aside>
       <div className="content">{children}</div>

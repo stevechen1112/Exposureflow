@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import type { Site } from "@exposureflow/shared-types";
 import { PageHeader } from "@/components/PageHeader";
+import { ForbiddenState, parseApiError } from "@/components/ForbiddenState";
 import { getApiClient } from "@/lib/api-client";
 import { storageKey } from "@/lib/config";
 
@@ -78,9 +80,11 @@ async function downloadReport(
 
 export default function ClientPortalPage() {
   const params = useParams<{ workspaceId: string }>();
+  const [sites, setSites] = useState<Site[]>([]);
   const [siteId, setSiteId] = useState<string>("");
   const [data, setData] = useState<PortalDashboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadingSites, setLoadingSites] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -93,11 +97,37 @@ export default function ClientPortalPage() {
   }
 
   useEffect(() => {
-    const sid = localStorage.getItem(storageKey("siteId")) ?? "";
-    setSiteId(sid);
-    if (!sid) return;
-    load(sid).catch((err: Error) => setError(err.message));
+    setLoadingSites(true);
+    client
+      .listSites()
+      .then((rows) => {
+        setSites(rows);
+        const stored = localStorage.getItem(storageKey("siteId"));
+        const pick = rows.find((s) => s.id === stored)?.id ?? rows[0]?.id ?? "";
+        setSiteId(pick);
+        if (pick) {
+          localStorage.setItem(storageKey("siteId"), pick);
+          return load(pick);
+        }
+        setData(null);
+      })
+      .catch((err: Error) => {
+        const parsed = parseApiError(err.message);
+        setError(parsed.friendly);
+      })
+      .finally(() => setLoadingSites(false));
   }, [params.workspaceId]);
+
+  function selectSite(next: string) {
+    setSiteId(next);
+    localStorage.setItem(storageKey("siteId"), next);
+    setError(null);
+    setData(null);
+    load(next).catch((err: Error) => {
+      const parsed = parseApiError(err.message);
+      setError(parsed.friendly);
+    });
+  }
 
   async function approve(itemId: string, approved: boolean) {
     setBusyId(itemId);
@@ -128,8 +158,23 @@ export default function ClientPortalPage() {
   const delta = data?.exposure_summary.impressions_delta_pct ?? 0;
 
   return (
-    <main className="content" style={{ maxWidth: 1040, margin: "0 auto" }}>
+    <>
       <PageHeader title="客戶入口" subtitle="月報、Roadmap 待核准、已完成行動與曝光摘要" />
+
+      {sites.length > 1 ? (
+        <div className="card" style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div>
+            <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>檢視站點</div>
+          </div>
+          <select value={siteId} onChange={(e) => selectSite(e.target.value)} style={{ marginLeft: "auto" }}>
+            {sites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.domain ?? s.site_name ?? s.id.slice(0, 12)}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {error ? (
         <p style={{ color: "var(--danger)", marginBottom: "1rem" }}>{error}</p>
@@ -138,7 +183,14 @@ export default function ClientPortalPage() {
         <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{success}</p>
       ) : null}
 
-      {!data ? (
+      {loadingSites ? (
+        <p style={{ color: "var(--muted)" }}>載入站點…</p>
+      ) : sites.length === 0 ? (
+        <ForbiddenState
+          title="尚無可檢視的站點"
+          message="您的顧問尚未完成站點設定。設定完成後，這裡會顯示曝光摘要、月報與待核准事項。"
+        />
+      ) : !data ? (
         <p style={{ color: "var(--muted)" }}>載入中…</p>
       ) : (
         <>
@@ -421,6 +473,6 @@ export default function ClientPortalPage() {
           )}
         </>
       )}
-    </main>
+    </>
   );
 }

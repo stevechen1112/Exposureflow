@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import type { Site } from "@exposureflow/shared-types";
 import { PageHeader } from "@/components/PageHeader";
+import { parseApiError } from "@/components/ForbiddenState";
 import { getApiClient } from "@/lib/api-client";
+import { useWorkspaceAuth } from "@/lib/auth-context";
 import { storageKey } from "@/lib/config";
 
 type SyncState = {
@@ -51,6 +53,8 @@ function StatusDot({ error, synced }: { error?: string; synced?: string }) {
 
 export default function IntegrationsPage() {
   const params = useParams<{ workspaceId: string }>();
+  const { can } = useWorkspaceAuth();
+  const canTriggerSync = can("integration:write");
   const client = getApiClient(params.workspaceId);
   const [syncStates, setSyncStates] = useState<SyncState[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -68,7 +72,10 @@ export default function IntegrationsPage() {
         setSites(s);
         setSyncStates(states as SyncState[]);
       })
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => {
+        const parsed = parseApiError(err.message);
+        setError(parsed.friendly);
+      })
       .finally(() => setLoading(false));
   }, [client]);
 
@@ -117,7 +124,11 @@ export default function IntegrationsPage() {
     <>
       <PageHeader
         title="整合設定"
-        subtitle="資料源連接狀態、手動同步觸發與整合管理"
+        subtitle={
+          canTriggerSync
+            ? "資料源連接狀態、手動同步觸發與整合管理"
+            : "資料源連接狀態（唯讀；同步操作需整合管理權限）"
+        }
       />
 
       {message ? (
@@ -166,7 +177,7 @@ export default function IntegrationsPage() {
       >
         {knownProviders.map((provider) => {
           const state = syncMap[provider];
-          const canSync = provider === "gsc" || provider === "tech_seo";
+          const providerSyncable = provider === "gsc" || provider === "tech_seo";
           return (
             <div key={provider} className="card">
               <div
@@ -211,7 +222,7 @@ export default function IntegrationsPage() {
                   尚未同步
                 </div>
               )}
-              {canSync && (
+              {canTriggerSync && providerSyncable && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -222,7 +233,12 @@ export default function IntegrationsPage() {
                   {syncing === provider ? "同步中…" : `觸發 ${PROVIDER_LABEL[provider]?.split(" ")[0]} 同步`}
                 </button>
               )}
-              {!canSync && (
+              {!canTriggerSync && providerSyncable && (
+                <p style={{ marginTop: "0.75rem", fontSize: "0.82rem", color: "var(--muted)" }}>
+                  您的角色無法觸發同步，請聯絡管理員。
+                </p>
+              )}
+              {!providerSyncable && (
                 <button
                   type="button"
                   className="btn"

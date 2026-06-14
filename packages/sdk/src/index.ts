@@ -152,12 +152,30 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/workspaces`);
   }
 
+  getMe(): Promise<{ user: Record<string, unknown>; workspaces: Array<Record<string, unknown>> }> {
+    return request(this.options, `/api/v1/me`);
+  }
+
   listSites(): Promise<Site[]> {
     return request(this.options, `/api/v1/sites`);
   }
 
   listMembers(): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/members`);
+  }
+
+  updateMemberRole(memberUserId: string, role: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/members/${memberUserId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  createInvitation(email: string, role: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/invitations`, {
+      method: "POST",
+      body: JSON.stringify({ email, role }),
+    });
   }
 
   listStrategyIntakes(): Promise<Array<Record<string, unknown>>> {
@@ -297,10 +315,10 @@ export class ExposureFlowClient {
     });
   }
 
-  devToken(email: string, name: string): Promise<{ access_token: string }> {
+  devToken(email: string, name: string, role?: string): Promise<{ access_token: string }> {
     return request(this.options, `/api/v1/auth/dev-token`, {
       method: "POST",
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email, name, role }),
     });
   }
 

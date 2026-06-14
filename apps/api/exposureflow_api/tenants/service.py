@@ -117,6 +117,40 @@ async def bootstrap_dev_user_workspace(
     return user, workspace
 
 
+async def apply_dev_role_override(
+    db: AsyncSession, user_id: UUID, workspace_id: UUID, role: str
+) -> None:
+    """Local dev: set membership role so UI role-switcher can be exercised."""
+    from exposureflow_api.config import settings
+
+    if settings.app_env == "production":
+        return
+
+    allowed = {
+        "owner",
+        "admin",
+        "strategist",
+        "editor",
+        "analyst",
+        "client_viewer",
+        "billing_admin",
+        "support_admin",
+    }
+    if role not in allowed:
+        return
+
+    result = await db.execute(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.user_id == user_id,
+        )
+    )
+    membership = result.scalar_one_or_none()
+    if membership is not None:
+        membership.role = role
+        await db.flush()
+
+
 async def bootstrap_platform_support(db: AsyncSession) -> User | None:
     """Seed platform support admin for internal ops (dev/local only)."""
     from exposureflow_api.config import settings

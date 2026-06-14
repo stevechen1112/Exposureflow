@@ -70,7 +70,11 @@ async def create_dev_token(
     if settings.app_env == "production":
         raise not_found("Endpoint")
 
-    user, _workspace = await service.bootstrap_dev_user_workspace(db, body.email, body.name)
+    user, workspace = await service.bootstrap_dev_user_workspace(db, body.email, body.name)
+    if body.role and settings.app_env != "production":
+        await service.apply_dev_role_override(db, user.id, workspace.id, body.role)
+    if body.role == "support_admin" or body.email == "support@example.com":
+        await service.bootstrap_platform_support(db)
     await record_audit(
         db,
         action="auth.dev_login",
