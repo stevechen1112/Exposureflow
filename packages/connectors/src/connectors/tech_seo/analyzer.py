@@ -8,6 +8,7 @@ from xml.etree import ElementTree
 
 import httpx
 
+from connectors.tech_seo.url_policy import filter_seed_urls
 from connectors.types import TechnicalIssueData
 
 AI_CRAWLERS = [
@@ -45,7 +46,9 @@ class TechnicalSeoAnalyzer:
         issues: list[TechnicalIssueData] = []
         issues.extend(self._check_robots_txt())
         issues.extend(self._check_sitemap())
-        for url in seed_urls or [self.site_domain]:
+        candidates = seed_urls or [self.site_domain]
+        safe_urls = filter_seed_urls(candidates, self.site_domain) or [self.site_domain]
+        for url in safe_urls:
             issues.extend(self._check_page(url))
         return issues
 

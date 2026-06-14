@@ -19,6 +19,7 @@ dependencies = [
     "cryptography>=44.0.0",
     "pyotp>=2.9.0",
     "google-auth>=2.37.0",
+    "exposureflow-connectors @ file:../../packages/connectors",
 ]
 
 [project.optional-dependencies]

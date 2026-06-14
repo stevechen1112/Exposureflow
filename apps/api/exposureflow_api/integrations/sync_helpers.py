@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.common.crypto import decrypt_secret
+from exposureflow_api.integrations.error_sanitizer import sanitize_sync_error
 from exposureflow_api.models import (
     BingPerformanceRow,
     Ga4PageMetric,
@@ -31,15 +32,27 @@ async def get_site(db: AsyncSession, workspace_id: UUID, site_id: UUID) -> Site 
 async def get_credential(
     db: AsyncSession, workspace_id: UUID, site_id: UUID, provider: str
 ) -> IntegrationCredential | None:
-    result = await db.execute(
+    site_result = await db.execute(
         select(IntegrationCredential).where(
             IntegrationCredential.workspace_id == workspace_id,
             IntegrationCredential.provider == provider,
             IntegrationCredential.status == "active",
-            (IntegrationCredential.site_id == site_id) | (IntegrationCredential.site_id.is_(None)),
+            IntegrationCredential.site_id == site_id,
         )
     )
-    return result.scalar_one_or_none()
+    site_credential = site_result.scalar_one_or_none()
+    if site_credential is not None:
+        return site_credential
+
+    workspace_result = await db.execute(
+        select(IntegrationCredential).where(
+            IntegrationCredential.workspace_id == workspace_id,
+            IntegrationCredential.provider == provider,
+            IntegrationCredential.status == "active",
+            IntegrationCredential.site_id.is_(None),
+        )
+    )
+    return workspace_result.scalar_one_or_none()
 
 
 def decrypt_credential_payload(credential: IntegrationCredential) -> str:
@@ -81,8 +94,8 @@ async def upsert_gsc_rows(
             "date": row.date,
             "query": row.query,
             "page": row.page,
-            "country": row.country,
-            "device": row.device,
+            "country": row.country or "",
+            "device": row.device or "",
             "impressions": row.impressions,
             "clicks": row.clicks,
             "ctr": row.ctr,
@@ -148,8 +161,8 @@ async def upsert_bing_rows(
             "date": row.date,
             "query": row.query,
             "page": row.page,
-            "country": row.country,
-            "device": row.device,
+            "country": row.country or "",
+            "device": row.device or "",
             "impressions": row.impressions,
             "clicks": row.clicks,
             "ctr": row.ctr,
@@ -194,9 +207,9 @@ def mark_sync_success(
         state.cursor_json = {**state.cursor_json, **extra}
 
 
-def mark_sync_failure(state: IntegrationSyncState, error: str) -> None:
+def mark_sync_failure(state: IntegrationSyncState, error: str | Exception) -> None:
     state.last_synced_at = datetime.now(UTC)
-    state.last_error = error
+    state.last_error = sanitize_sync_error(error)
 
 
 async def finalize_job_run(
@@ -218,4 +231,4 @@ async def finalize_job_run(
     else:
         run.status = "failed"
         run.error_code = error_code
-        run.error_message = error_message
+        run.error_message = sanitize_sync_error(error_message) if error_message else None

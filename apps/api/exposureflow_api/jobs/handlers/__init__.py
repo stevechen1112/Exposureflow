@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.jobs.handlers.bing_sync import run_bing_sync
+from exposureflow_api.jobs.handlers.integration_health import run_integration_health_check
 from exposureflow_api.jobs.handlers.ga4_sync import run_ga4_sync
 from exposureflow_api.jobs.handlers.gsc_sync import run_gsc_sync
 from exposureflow_api.jobs.handlers.serp_snapshot import run_serp_snapshot
@@ -18,6 +19,7 @@ HANDLERS = {
     "serp.snapshot": run_serp_snapshot,
     "tech_seo.crawl": run_tech_seo_crawl,
     "bing.sync": run_bing_sync,
+    "integration.health_check": run_integration_health_check,
 }
 
 
