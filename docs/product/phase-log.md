@@ -30,7 +30,7 @@
 | 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
 | 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
 | 6 | AI Visibility | completed | 49942b4 | 2026-06-14 | EF-0601–0604 + 補強 |
-| 7 | Decision Plane | completed | _(本次 commit)_ | 2026-06-14 | EF-0701–0703 |
+| 7 | Decision Plane | completed | 1c12618 | 2026-06-14 | EF-0701–0703 |
 | 8 | Execution Plane | in_progress | — | — | |
 | 9 | Dashboard / UX | pending | — | — | |
 | 10 | Reporting | pending | — | — | |
@@ -234,3 +234,29 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 7：Decision Plane（Candidate Generator、Action Selector）
+
+---
+
+### Phase 7 — Decision Plane
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- `ActionCandidate`、`ActionDecision`、`Roadmap`、`RoadmapItem`
+- migration `009_decision_plane.py`
+- Candidate generator、selector、roadmap builder
+- API：`/decisions/candidates`、`/roadmaps`
+- Jobs：`decision.candidates.generate`、`roadmap.build`
+- `docs/product/phase-7-review.md`
+
+**驗收證據：**
+
+- EF-0701–0703 PASS
+- 單元測試 5 passed
+
+**下一 Phase 前置：**
+
+- 開始 Phase 8：Execution Plane
+
