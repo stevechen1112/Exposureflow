@@ -13,6 +13,7 @@ from exposureflow_api.exposure.router import router as exposure_router
 from exposureflow_api.integrations.router import router as integrations_router
 from exposureflow_api.serp.router import router as serp_router
 from exposureflow_api.ai_visibility.router import router as ai_visibility_router
+from exposureflow_api.decision.router import router as decision_router
 from exposureflow_api.topics.router import router as topics_router
 from exposureflow_api.tenants.router import router as tenants_router
 
@@ -48,6 +49,7 @@ app.include_router(competitors_router)
 app.include_router(topics_router)
 app.include_router(serp_router)
 app.include_router(ai_visibility_router)
+app.include_router(decision_router)
 
 
 @app.get("/health")

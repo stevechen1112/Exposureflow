@@ -25,6 +25,12 @@ from exposureflow_api.models.ai_visibility import (
     BrandMention,
     SerpoRecord,
 )
+from exposureflow_api.models.decision import (
+    ActionCandidate,
+    ActionDecision,
+    Roadmap,
+    RoadmapItem,
+)
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -73,6 +79,10 @@ __all__ = [
     "BrandEntity",
     "BrandMention",
     "SerpoRecord",
+    "ActionCandidate",
+    "ActionDecision",
+    "Roadmap",
+    "RoadmapItem",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",

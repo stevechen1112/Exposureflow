@@ -11,6 +11,8 @@ from exposureflow_api.jobs.handlers.gsc_sync import run_gsc_sync
 from exposureflow_api.jobs.handlers.serp_snapshot import run_serp_snapshot
 from exposureflow_api.jobs.handlers.tech_seo_crawl import run_tech_seo_crawl
 from exposureflow_api.jobs.handlers.topic_graph_rebuild import run_topic_graph_rebuild
+from exposureflow_api.jobs.handlers.decision_generate import run_decision_candidates_generate
+from exposureflow_api.jobs.handlers.roadmap_build import run_roadmap_build
 from exposureflow_api.integrations.sync_helpers import finalize_job_run
 from exposureflow_api.models import JobRun
 
@@ -22,6 +24,8 @@ HANDLERS = {
     "bing.sync": run_bing_sync,
     "integration.health_check": run_integration_health_check,
     "topic_graph.rebuild": run_topic_graph_rebuild,
+    "decision.candidates.generate": run_decision_candidates_generate,
+    "roadmap.build": run_roadmap_build,
 }
 
 

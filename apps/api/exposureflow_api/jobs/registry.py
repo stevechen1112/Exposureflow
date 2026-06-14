@@ -51,6 +51,20 @@ JOB_DEFINITIONS: list[dict[str, str | int | bool | None]] = [
         "max_retries": 2,
     },
     {
+        "job_type": "decision.candidates.generate",
+        "description": "Generate action candidates from open opportunities",
+        "default_schedule": None,
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
+        "job_type": "roadmap.build",
+        "description": "Build exposure roadmap from approved decisions",
+        "default_schedule": None,
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
         "job_type": "exposure.aggregate",
         "description": "Exposure core daily aggregation",
         "default_schedule": "0 1 * * *",

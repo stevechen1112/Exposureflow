@@ -30,8 +30,8 @@
 | 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
 | 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
 | 6 | AI Visibility | completed | 49942b4 | 2026-06-14 | EF-0601–0604 + 補強 |
-| 7 | Decision Plane | in_progress | — | — | |
-| 8 | Execution Plane | pending | — | — | |
+| 7 | Decision Plane | completed | _(本次 commit)_ | 2026-06-14 | EF-0701–0703 |
+| 8 | Execution Plane | in_progress | — | — | |
 | 9 | Dashboard / UX | pending | — | — | |
 | 10 | Reporting | pending | — | — | |
 | 11 | SaaS Commercial | pending | — | — | |
