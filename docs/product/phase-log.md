@@ -31,9 +31,9 @@
 | 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
 | 6 | AI Visibility | completed | 49942b4 | 2026-06-14 | EF-0601–0604 + 補強 |
 | 7 | Decision Plane | completed | 1c12618 | 2026-06-14 | EF-0701–0703 |
-| 8 | Execution Plane | completed | — | 2026-06-14 | EF-0801–0814；review 見 `phase-8-review.md`（commit 待指示） |
-| 9 | Dashboard / UX | completed | — | 2026-06-14 | EF-0901–0910；review 見 `phase-9-review.md`（commit 待指示） |
-| 10 | Reporting | completed | — | 2026-06-14 | EF-1001–1002；review 見 `phase-10-review.md`（commit 待指示） |
+| 8 | Execution Plane | completed | 0b589dc | 2026-06-14 | EF-0801–0814；review 見 `phase-8-review.md` |
+| 9 | Dashboard / UX | completed | 0b589dc | 2026-06-14 | EF-0901–0910；review 見 `phase-9-review.md` |
+| 10 | Reporting | completed | 0b589dc | 2026-06-14 | EF-1001–1002；review 見 `phase-10-review.md` |
 | 11 | SaaS Commercial | in_progress | — | — | |
 | 12 | Security / Reliability | pending | — | — | |
 | 13 | Internal Admin / CS | pending | — | — | |
