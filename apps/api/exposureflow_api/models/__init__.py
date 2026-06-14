@@ -17,6 +17,14 @@ from exposureflow_api.models.topic import (
     TopicNode,
 )
 from exposureflow_api.models.serp import SerpSlotTarget
+from exposureflow_api.models.ai_visibility import (
+    AIProbeRun,
+    AIProbeSet,
+    AICitation,
+    BrandEntity,
+    BrandMention,
+    SerpoRecord,
+)
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -59,6 +67,12 @@ __all__ = [
     "CannibalizationCase",
     "InternalLinkSuggestion",
     "SerpSlotTarget",
+    "AIProbeSet",
+    "AIProbeRun",
+    "AICitation",
+    "BrandEntity",
+    "BrandMention",
+    "SerpoRecord",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",

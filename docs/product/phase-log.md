@@ -28,9 +28,9 @@
 | 2 | 資料接入層 | completed | 8c0b4c7 | 2026-06-14 | EF-0201–0205 完整 review |
 | 3 | Exposure Core | completed | 40bd83a | 2026-06-14 | EF-0301–0303 + 補強 |
 | 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
-| 5 | SERP Matrix | completed | _(本次 commit)_ | 2026-06-14 | EF-0501–0503 + 補強 |
-| 6 | AI Visibility | in_progress | — | — | |
-| 7 | Decision Plane | pending | — | — | |
+| 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
+| 6 | AI Visibility | completed | _(本次 commit)_ | 2026-06-14 | EF-0601–0604 + 補強 |
+| 7 | Decision Plane | in_progress | — | — | |
 | 8 | Execution Plane | pending | — | — | |
 | 9 | Dashboard / UX | pending | — | — | |
 | 10 | Reporting | pending | — | — | |
@@ -210,3 +210,27 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 6：AI Probe Framework、AI Visibility
+
+---
+
+### Phase 6 — AI Visibility Monitor
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- `AIProbeSet`、`AIProbeRun`、`AICitation`、`BrandEntity`、`BrandMention`、`SerpoRecord`
+- migration `007_ai_visibility.py`
+- assisted manual / CSV·JSON import、visibility score、entity check、SERPO
+- OG-010、OG-011 opportunity 規則
+- `docs/product/phase-6-review.md`
+
+**驗收證據：**
+
+- EF-0601–0608 PASS
+- 單元測試 10 passed；Bugbot / Security Review 修復後 PASS
+
+**下一 Phase 前置：**
+
+- 開始 Phase 7：Decision Plane（Candidate Generator、Action Selector）
