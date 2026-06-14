@@ -24,7 +24,7 @@
 |-------|------|------|--------|----------|------|
 | 0 | 產品核心定義 | completed | 791ec51 | 2026-06-14 | EF-0001、EF-0002 |
 | 1 | 多租戶基礎架構 | completed | 06d85f4 | 2026-06-14 | EF-0101–0104 |
-| 2 | 資料接入層 | completed | — | 2026-06-14 | EF-0201–0205 |
+| 2 | 資料接入層 | completed | e7de6d9 | 2026-06-14 | EF-0201–0205 |
 | 3 | Exposure Core | in_progress | — | — | EF-0301–0303 |
 | 4 | Topic Graph | pending | — | — | |
 | 5 | SERP Matrix | pending | — | — | |
