@@ -88,6 +88,45 @@ async def verify_two_factor(
     return {"enabled": True, "access_token": token}
 
 
+@router.post("/2fa/step-up")
+async def step_up_two_factor(
+    body: TwoFactorVerifyRequest,
+    user_ctx: AuthContext = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    """Re-authenticate an already 2FA-enabled user and return a step-up token."""
+    from exposureflow_api.common.crypto import decrypt_secret
+
+    security = await db.get(UserSecurity, user_ctx.user_id)
+    if security is None or not security.totp_enabled or security.totp_secret_encrypted is None:
+        raise APIError(
+            code="2FA_NOT_ENABLED",
+            message="Enable 2FA before requesting step-up.",
+            status_code=400,
+        )
+
+    secret = decrypt_secret(security.totp_secret_encrypted)
+    if not pyotp.TOTP(secret).verify(body.code, valid_window=1):
+        raise APIError(code="2FA_INVALID", message="Invalid verification code.", status_code=400)
+
+    user = await db.get(User, user_ctx.user_id)
+    token = create_access_token(
+        user_ctx.user_id,
+        user.email if user else user_ctx.email,
+        user.name if user else user_ctx.name,
+        amr=["2fa"],
+    )
+    await record_audit(
+        db,
+        action="auth.2fa_step_up",
+        target_type="user",
+        target_id=str(user_ctx.user_id),
+        actor_user_id=user_ctx.user_id,
+    )
+    await db.commit()
+    return {"access_token": token}
+
+
 class ImpersonationRequest(BaseModel):
     target_user_id: UUID
     workspace_id: UUID | None = None

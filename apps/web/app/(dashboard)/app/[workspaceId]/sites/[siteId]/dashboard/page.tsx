@@ -51,7 +51,7 @@ export default function DashboardPage() {
   useEffect(() => {
     setLoading(true);
     client
-      .getDashboard(siteId)
+      .getDashboard(siteId, range)
       .then((d) => {
         setData(d);
         setError(null);

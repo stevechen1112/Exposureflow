@@ -19,23 +19,39 @@ type GenerationRun = {
   updated_at: string;
 };
 
+/** Status values returned by the content generation API. */
+const REVIEWABLE_STATUSES = new Set([
+  "needs_review",
+  "draft",
+  "claim_verified",
+  "claim_blocked",
+]);
+
 const STATUS_CLASS: Record<string, string> = {
   draft: "",
-  compiled: "",
-  pending_review: "badge-high",
+  needs_review: "badge-high",
+  claim_verified: "",
+  claim_blocked: "badge-critical",
+  needs_changes: "badge-critical",
   approved: "",
-  changes_requested: "badge-critical",
   published: "",
+  queued: "",
 };
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "草稿",
-  compiled: "已編譯",
-  pending_review: "待審核",
+  needs_review: "待審核",
+  claim_verified: "Claim 通過",
+  claim_blocked: "Claim 阻擋",
+  needs_changes: "需修改",
   approved: "已核准",
-  changes_requested: "需修改",
   published: "已發布",
+  queued: "排隊中",
 };
+
+function isReviewable(status: string) {
+  return REVIEWABLE_STATUSES.has(status);
+}
 
 const REVIEW_LEVEL_LABEL: Record<string, string> = {
   editor_review: "編輯審核",
@@ -125,17 +141,18 @@ export default function ContentReviewPage() {
 
   const statusOptions = [
     "all",
-    "pending_review",
-    "changes_requested",
+    "needs_review",
+    "needs_changes",
+    "claim_verified",
+    "claim_blocked",
     "approved",
-    "compiled",
     "draft",
     "published",
   ];
 
   const statusCount = (s: string) => runs.filter((r) => r.status === s).length;
-  const pendingCount = statusCount("pending_review");
-  const changesCount = statusCount("changes_requested");
+  const pendingCount = statusCount("needs_review");
+  const changesCount = statusCount("needs_changes");
 
   return (
     <>
@@ -257,7 +274,7 @@ export default function ContentReviewPage() {
                       >
                         {panel?.type === "preview" && panel.run.id === run.id ? "收起" : "預覽"}
                       </button>
-                      {(run.status === "pending_review" || run.status === "compiled") && (
+                      {isReviewable(run.status) && (
                         <>
                           <button
                             type="button"
@@ -314,7 +331,7 @@ export default function ContentReviewPage() {
               </span>
             </h2>
             <div style={{ display: "flex", gap: "0.5rem" }}>
-              {(panel.run.status === "pending_review" || panel.run.status === "compiled") && (
+              {isReviewable(panel.run.status) && (
                 <button
                   type="button"
                   className="btn btn-primary"

@@ -23,10 +23,13 @@ async def build_dashboard_metrics(
     db: AsyncSession,
     workspace_id: UUID,
     site_id: UUID,
+    *,
+    days: int = 28,
 ) -> dict:
+    days = max(7, min(days, 90))
     today = date.today()
-    current_start = today - timedelta(days=28)
-    previous_start = today - timedelta(days=56)
+    current_start = today - timedelta(days=days)
+    previous_start = today - timedelta(days=days * 2)
 
     current_impressions = await db.execute(
         select(func.coalesce(func.sum(GscPerformanceRow.impressions), 0)).where(

@@ -37,8 +37,8 @@ async function request<T>(options: ExposureFlowClientOptions, path: string, init
 export class ExposureFlowClient {
   constructor(private readonly options: ExposureFlowClientOptions) {}
 
-  getDashboard(siteId: string): Promise<ExposureDashboardMetrics> {
-    return request(this.options, `/api/v1/exposure/dashboard?site_id=${siteId}`);
+  getDashboard(siteId: string, days = 28): Promise<ExposureDashboardMetrics> {
+    return request(this.options, `/api/v1/exposure/dashboard?site_id=${siteId}&days=${days}`);
   }
 
   listOpportunities(siteId: string): Promise<Opportunity[]> {
@@ -301,6 +301,13 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/auth/dev-token`, {
       method: "POST",
       body: JSON.stringify({ email, name }),
+    });
+  }
+
+  stepUpTwoFactor(code: string): Promise<{ access_token: string }> {
+    return request(this.options, `/api/v1/auth/2fa/step-up`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   }
 

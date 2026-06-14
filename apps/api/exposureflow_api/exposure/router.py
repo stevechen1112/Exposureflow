@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/v1/exposure", tags=["exposure"])
 @router.get("/dashboard", response_model=DashboardResponse)
 async def get_dashboard(
     site_id: UUID,
+    days: int = Query(default=28, ge=7, le=90),
     ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -34,7 +35,7 @@ async def get_dashboard(
     await get_site_in_workspace(db, workspace_id, site_id)
     from exposureflow_api.exposure.dashboard import build_dashboard_metrics
 
-    return await build_dashboard_metrics(db, workspace_id, site_id)
+    return await build_dashboard_metrics(db, workspace_id, site_id, days=days)
 
 
 @router.post("/sites/{site_id}/assets/import-gsc")

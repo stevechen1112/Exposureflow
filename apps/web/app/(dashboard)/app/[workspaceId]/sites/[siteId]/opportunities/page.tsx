@@ -102,6 +102,10 @@ export default function OpportunitiesPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filterRisk, filterStatus]);
+
   const filtered = useMemo(() => {
     if (filterRisk === "all") return candidates;
     return candidates.filter((c) => c.risk_level === filterRisk);

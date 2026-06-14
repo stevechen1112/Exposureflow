@@ -12,7 +12,7 @@ from exposureflow_api.common.errors import APIError, not_found
 from exposureflow_api.config import settings
 from exposureflow_api.database import get_db
 from exposureflow_api.jobs.service import enqueue_job
-from exposureflow_api.models import IntegrationCredential, Site, Workspace
+from exposureflow_api.models import IntegrationCredential, Site, UserSecurity, Workspace
 from exposureflow_api.tenants import service
 from exposureflow_api.tenants.schemas import (
     ApiKeyCreate,
@@ -80,7 +80,14 @@ async def create_dev_token(
         metadata={"email": user.email},
     )
     await db.commit()
-    token = create_access_token(user.id, user.email, user.name)
+    amr: list[str] | None = None
+    if settings.app_env != "production":
+        amr = ["2fa"]
+    else:
+        security = await db.get(UserSecurity, user.id)
+        if security is not None and security.totp_enabled:
+            amr = ["2fa"]
+    token = create_access_token(user.id, user.email, user.name, amr=amr)
     return DevTokenResponse(access_token=token)
 
 

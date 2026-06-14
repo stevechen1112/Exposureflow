@@ -1,4 +1,4 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -147,7 +147,7 @@ async def trigger_source_ingest(
         job_type="knowledge.source.ingest",
         site_id=src.site_id,
         input_json={"knowledge_source_id": str(source_id)},
-        idempotency_key=f"ingest-{source_id}",
+        idempotency_key=f"ingest-{source_id}-{uuid4()}",
     )
     await db.commit()
     return {"job_run_id": str(run.id), "status": "queued"}

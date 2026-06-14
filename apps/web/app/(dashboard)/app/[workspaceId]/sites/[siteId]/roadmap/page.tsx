@@ -73,9 +73,10 @@ export default function RoadmapPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
       client.listRoadmaps(siteId) as Promise<Roadmap[]>,
-      client.listMembers() as Promise<Member[]>,
+      client.listMembers().catch(() => [] as Member[]),
     ])
       .then(([rms, mbs]) => {
         setRoadmaps(rms);

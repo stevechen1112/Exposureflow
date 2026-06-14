@@ -5,21 +5,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.auth.permissions import require_permission
 from exposureflow_api.database import get_db
-from exposureflow_api.observability.metrics import metrics_snapshot
 from exposureflow_api.reliability.circuit_breaker import circuit_status
-from exposureflow_api.reliability.slo import compute_slo_status
+from exposureflow_api.reliability.slo import compute_slo_status, workspace_job_metrics
 
 router = APIRouter(prefix="/api/v1/ops", tags=["ops"])
 
 
 @router.get("/health")
 async def ops_health(
-    _ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
+    ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    slo = await compute_slo_status(db)
+    _user, _membership, workspace_id = ctx
+    slo = await compute_slo_status(db, workspace_id)
     return {
         "status": "ok",
+        "workspace_id": str(workspace_id),
         "slo": slo["status"],
         "circuits": circuit_status(),
     }
@@ -27,17 +28,20 @@ async def ops_health(
 
 @router.get("/metrics")
 async def ops_metrics(
-    _ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
+    ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
-    return metrics_snapshot()
+    _user, _membership, workspace_id = ctx
+    return await workspace_job_metrics(db, workspace_id)
 
 
 @router.get("/slo")
 async def ops_slo(
-    _ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
+    ctx: tuple[object, object, UUID] = Depends(require_permission("ops:read")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    return await compute_slo_status(db)
+    _user, _membership, workspace_id = ctx
+    return await compute_slo_status(db, workspace_id)
 
 
 @router.get("/circuits")

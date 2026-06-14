@@ -14,6 +14,23 @@ from exposureflow_api.models.client_deliverables import ClientMeetingNote
 from exposureflow_api.models.reporting import Report
 
 
+def _outcome_summary(outcome: dict) -> str:
+    parts: list[str] = []
+    roadmap_status = outcome.get("roadmap_status")
+    if roadmap_status and roadmap_status != "unscheduled":
+        parts.append(f"Roadmap: {roadmap_status}")
+    week = outcome.get("week_number")
+    if week is not None:
+        parts.append(f"W{week}")
+    delta = outcome.get("impressions_delta_28d") or outcome.get("impressions_delta_7d")
+    if delta is not None:
+        sign = "+" if float(delta) >= 0 else ""
+        parts.append(f"曝光 {sign}{delta}")
+    if outcome.get("pattern_worth_replicating"):
+        parts.append("可複製模式")
+    return " · ".join(parts) if parts else "已核准執行"
+
+
 async def build_client_portal_dashboard(
     db: AsyncSession,
     workspace_id: UUID,
@@ -74,7 +91,17 @@ async def build_client_portal_dashboard(
             }
             for i in pending.scalars().all()
         ],
-        "completed_actions": outcomes[:10],
+        "completed_actions": [
+            {
+                "id": o["decision_id"],
+                "action_type": o["action_type"],
+                "keyword": o.get("keyword"),
+                "result_summary": _outcome_summary(o),
+                "impression_delta": o.get("impressions_delta_28d") or o.get("impressions_delta_7d"),
+                "completed_at": o.get("created_at"),
+            }
+            for o in outcomes[:10]
+        ],
         "meeting_notes": [
             {
                 "id": str(m.id),
