@@ -13,6 +13,14 @@ from exposureflow_api.jobs.handlers.tech_seo_crawl import run_tech_seo_crawl
 from exposureflow_api.jobs.handlers.topic_graph_rebuild import run_topic_graph_rebuild
 from exposureflow_api.jobs.handlers.decision_generate import run_decision_candidates_generate
 from exposureflow_api.jobs.handlers.roadmap_build import run_roadmap_build
+from exposureflow_api.jobs.handlers.content_generate import run_content_generate_grounded_draft
+from exposureflow_api.jobs.handlers.content_publish_gate import run_content_publish_gate
+from exposureflow_api.jobs.handlers.wordpress_publish import run_wordpress_publish_draft
+from exposureflow_api.jobs.handlers.knowledge_ingest import run_knowledge_source_ingest
+from exposureflow_api.jobs.handlers.knowledge_embed import run_knowledge_fact_embed
+from exposureflow_api.jobs.handlers.cold_start_research import run_cold_start_research
+from exposureflow_api.jobs.handlers.execution_run import run_execution_job
+from exposureflow_api.jobs.handlers.report_monthly_generate import run_report_monthly_generate
 from exposureflow_api.integrations.sync_helpers import finalize_job_run
 from exposureflow_api.models import JobRun
 
@@ -26,6 +34,14 @@ HANDLERS = {
     "topic_graph.rebuild": run_topic_graph_rebuild,
     "decision.candidates.generate": run_decision_candidates_generate,
     "roadmap.build": run_roadmap_build,
+    "content.generate.grounded_draft": run_content_generate_grounded_draft,
+    "content.publish_gate.check": run_content_publish_gate,
+    "wordpress.publish_draft": run_wordpress_publish_draft,
+    "knowledge.source.ingest": run_knowledge_source_ingest,
+    "knowledge.fact.embed": run_knowledge_fact_embed,
+    "strategy.cold_start_research": run_cold_start_research,
+    "execution.job.run": run_execution_job,
+    "report.monthly.generate": run_report_monthly_generate,
 }
 
 

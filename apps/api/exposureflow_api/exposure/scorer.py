@@ -16,6 +16,7 @@ class ScoreInput:
     targetable_slot_count: int = 0
     topic_node_status: str | None = None
     business_priority: int = 3
+    business_fit_score: float = 1.0
     ai_citation_score: float = 0.7
     zero_click_value_score: float = 0.7
     execution_confidence: float = 0.8
@@ -74,6 +75,7 @@ def _priority_from_score(total: float) -> str:
 
 
 def score_opportunity(data: ScoreInput) -> ScoreResult:
+    business_fit = max(0.0, min(1.0, data.business_fit_score))
     search_demand = _search_demand_score(data.query_impressions_28d, data.site_p95_query_impressions)
     ranking_feasibility = _ranking_feasibility_score(
         data.current_position, data.cluster_authority_score
@@ -86,6 +88,7 @@ def score_opportunity(data: ScoreInput) -> ScoreResult:
 
     total = (
         100
+        * business_fit
         * search_demand
         * ranking_feasibility
         * serp_slot
@@ -97,6 +100,7 @@ def score_opportunity(data: ScoreInput) -> ScoreResult:
     total = round(min(100.0, max(0.0, total)), 2)
 
     subscores = {
+        "business_fit_score": round(business_fit, 4),
         "search_demand_score": round(search_demand, 4),
         "ranking_feasibility_score": round(ranking_feasibility, 4),
         "serp_slot_score": round(serp_slot, 4),
@@ -106,7 +110,7 @@ def score_opportunity(data: ScoreInput) -> ScoreResult:
         "execution_confidence_score": round(execution_confidence, 4),
     }
     evidence = {
-        "formula": "total = 100 × search_demand × ranking_feasibility × serp_slot × topic_contribution × execution_confidence × max(ai_citation,0.7) × max(zero_click,0.7)",
+        "formula": "total = 100 × business_fit × search_demand × ranking_feasibility × serp_slot × topic_contribution × execution_confidence × max(ai_citation,0.7) × max(zero_click,0.7)",
         "inputs": {
             "query_impressions_28d": data.query_impressions_28d,
             "site_p95_query_impressions": data.site_p95_query_impressions,
@@ -114,6 +118,7 @@ def score_opportunity(data: ScoreInput) -> ScoreResult:
             "targetable_slot_count": data.targetable_slot_count,
             "topic_node_status": data.topic_node_status,
             "business_priority": data.business_priority,
+            "business_fit_score": business_fit,
         },
         "subscores": subscores,
     }

@@ -4,8 +4,11 @@ import sys
 from pathlib import Path
 
 _CONNECTORS_SRC = Path(__file__).resolve().parents[3] / "packages" / "connectors" / "src"
+_EXECUTION_ADAPTERS_SRC = Path(__file__).resolve().parents[3] / "packages" / "execution-adapters" / "src"
 if _CONNECTORS_SRC.exists() and str(_CONNECTORS_SRC) not in sys.path:
     sys.path.insert(0, str(_CONNECTORS_SRC))
+if _EXECUTION_ADAPTERS_SRC.exists() and str(_EXECUTION_ADAPTERS_SRC) not in sys.path:
+    sys.path.insert(0, str(_EXECUTION_ADAPTERS_SRC))
 
 os.environ.setdefault(
     "DATABASE_URL",

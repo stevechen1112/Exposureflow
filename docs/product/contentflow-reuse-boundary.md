@@ -9,11 +9,12 @@
 
 ## 1. 邊界結論
 
-ExposureFlow **復用** ContentFlow 的成熟 **connector、publisher、safety、utility** 能力，  
-**不复用** 以 `Article` / `ContentCalendar` / `PipelineRun` 為中心的產品核心架構。
+ExposureFlow **復用 / 參考** ContentFlow 的成熟 **connector、publisher、safety、utility、content compiler 合約與企業知識治理思路**，
+**不復用** 以 `Article` / `ContentCalendar` / `PipelineRun` 為中心的產品核心架構，也不依賴 ContentFlow runtime。
 
 ```text
 ExposureFlow = 新產品核心 + 新資料模型 + 新決策/量測平面
+             + 企業知識庫 + grounded content execution
              + 選擇性移植 ContentFlow 底層 adapter
 ```
 
@@ -27,6 +28,7 @@ ExposureFlow = 新產品核心 + 新資料模型 + 新決策/量測平面
 | **publisher** | 內容發布至 CMS | 移植至 `packages/execution-adapters` |
 | **safety** | 發布前安全閘 | 移植至 `execution/safety/publish_gate.py` |
 | **utility** | 無領域核心的工具函式 | 移植至 `packages/shared` 或對應 util |
+| **grounded_content_reference** | ContentFlow v2 content compiler、company KB、claim verifier 的合約與流程 | 翻譯為 ExposureFlow workspace-scoped knowledge / source pack / claim gate |
 | **logic_reference** | 商業邏輯可參考，須重寫為 exposure-centric | 翻譯邏輯，不搬檔案 |
 | **reference_only** | 反面教材或歷史參考 | 不移植 |
 | **forbidden** | 禁止作為 ExposureFlow 核心 | 不得進入核心 schema / 決策 / 主 UI |
@@ -70,7 +72,11 @@ ExposureFlow = 新產品核心 + 新資料模型 + 新決策/量測平面
 | `agents/analytics_agent.py` | exposure-first diagnostics, cannibalization | 3–4 |
 | `agents/cluster_agent.py` | topic graph（embeddings + GSC，非 LLM 主分群） | 4 |
 | `agents/refresh_agent.py` | snippet detector, section refresh | 5, 8 |
-| `agents/content_compiler/` | Content Execution Adapter（非核心） | 8 |
+| `agents/content_compiler/` | Grounded Content Compiler（合約、brief、outline、section generation 邏輯翻譯） | 8 |
+| `agents/company_kb.py` | Workspace Brand / Knowledge Base（PostgreSQL + pgvector，多租戶重寫） | 8 |
+| `agents/claim_verifier.py` | Claim / Source Verification Gate | 8 |
+| `agents/factcheck_agent.py` | External evidence / compliance verification（需重構接 SERP / AI / source pack） | 8 |
+| `agents/mode_router.py`, `policy_resolver.py`, `project_context.py` | Domain / compliance / review policy router | 8 |
 | `scheduler_job_registry.py` | `job_definitions` 設計參考 | 1 |
 | `agents/strategic_controls.py` | candidate/decision trace 參考 | 7 |
 
@@ -79,7 +85,7 @@ ExposureFlow = 新產品核心 + 新資料模型 + 新決策/量測平面
 | ContentFlow 路徑 | 原因 |
 |------------------|------|
 | `agents/strategic_agent.py` | 高耦合、以 generate/refresh 文章為中心 |
-| `agents/orchestrator.py` | 文章 pipeline 編排 |
+| `agents/orchestrator.py` | 文章 pipeline 編排；只能作歷史參考，不得成為 ExposureFlow runtime |
 | `scheduler.py` | 27 jobs 與文章 pipeline 耦合 |
 | `admin/app.py` | UI 綁定文章管理 |
 | `admin/templates/*` | 文章工廠後台 |
@@ -96,6 +102,8 @@ ExposureFlow = 新產品核心 + 新資料模型 + 新決策/量測平面
 | `SEO Score` 作為主品質門檻 | 改用 ExposureOpportunityScore |
 | `strategic_agent.py` 作為決策核心 | 改用 Decision Plane + evidence-backed candidates |
 | 16 agents 作為產品對外語言 | 對外以 Exposure Plane 模組語言呈現 |
+| ContentFlow company KB / ChromaDB collection 直接沿用 | 改用 ExposureFlow `workspace_id` scoped PostgreSQL + pgvector，所有檢索不得跨租戶 |
+| 未接 claim / source gate 的 auto publish | 改用 ExecutionJob + content_gate_results，未通過不可 publish-ready |
 
 ---
 

@@ -37,6 +37,30 @@ class OpportunityResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class TopicClusterPerformanceItem(BaseModel):
+    id: str
+    name: str
+    total_impressions: int
+    coverage_score: float
+    ai_visibility_score: float
+    status: str
+
+
+class DashboardResponse(BaseModel):
+    total_impressions: int
+    impressions_delta_pct: float
+    query_coverage_count: int
+    indexed_asset_count: int
+    top_3_count: int
+    top_10_count: int
+    top_20_count: int
+    serp_slot_count: int
+    ai_citation_count: int
+    open_opportunity_count: int
+    critical_blocker_count: int
+    topic_cluster_performance: list[TopicClusterPerformanceItem]
+
+
 class CompetitorCreate(BaseModel):
     name: str
     domain: str

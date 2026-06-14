@@ -40,6 +40,7 @@ PERMISSIONS: dict[str, set[str]] = {
         "api_key:write",
         "billing:read",
         "impersonate",
+        "client:approve",
     },
     "admin": {
         "workspace:read",
@@ -55,6 +56,12 @@ PERMISSIONS: dict[str, set[str]] = {
         "job:write",
         "api_key:write",
         "billing:read",
+        "client:approve",
+    },
+    "client_viewer": {
+        "workspace:read",
+        "site:read",
+        "client:approve",
     },
     "strategist": {
         "workspace:read",
@@ -64,21 +71,19 @@ PERMISSIONS: dict[str, set[str]] = {
         "integration:read",
         "job:read",
         "job:write",
+        "client:approve",
     },
     "editor": {
         "workspace:read",
         "site:read",
         "site:write",
         "job:read",
+        "client:approve",
     },
     "analyst": {
         "workspace:read",
         "site:read",
         "job:read",
-    },
-    "client_viewer": {
-        "workspace:read",
-        "site:read",
     },
     "billing_admin": {
         "workspace:read",

@@ -31,10 +31,10 @@
 | 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
 | 6 | AI Visibility | completed | 49942b4 | 2026-06-14 | EF-0601–0604 + 補強 |
 | 7 | Decision Plane | completed | 1c12618 | 2026-06-14 | EF-0701–0703 |
-| 8 | Execution Plane | in_progress | — | — | |
-| 9 | Dashboard / UX | pending | — | — | |
-| 10 | Reporting | pending | — | — | |
-| 11 | SaaS Commercial | pending | — | — | |
+| 8 | Execution Plane | completed | — | 2026-06-14 | EF-0801–0814；review 見 `phase-8-review.md`（commit 待指示） |
+| 9 | Dashboard / UX | completed | — | 2026-06-14 | EF-0901–0910；review 見 `phase-9-review.md`（commit 待指示） |
+| 10 | Reporting | completed | — | 2026-06-14 | EF-1001–1002；review 見 `phase-10-review.md`（commit 待指示） |
+| 11 | SaaS Commercial | in_progress | — | — | |
 | 12 | Security / Reliability | pending | — | — | |
 | 13 | Internal Admin / CS | pending | — | — | |
 | 14 | Production Launch | pending | — | — | |
@@ -259,4 +259,52 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 8：Execution Plane
+
+---
+
+### 2026-06-14 規格修訂 — Phase 8 企業級內容執行補強
+
+**原因：**
+
+- 上市版 ExposureFlow 將服務上百上千多租戶 B2B 企業客戶。
+- 除決策核准外，系統必須自行完成可系統化的執行與產出，包含文章、頁面更新、FAQ、schema、解決方案頁、比較頁與出口市場內容。
+- 原 Phase 8 僅以 Content Brief / Content Execution Adapter / Publish Gate 描述內容能力，對企業自家資料、domain knowledge、claim verification、source coverage、多市場與容量控管不足。
+
+**本次修訂文件：**
+
+- `docs/product/exposureflow-development-plan.md`
+- `docs/product/product-north-star-spec.md`
+- `docs/product/contentflow-reuse-boundary.md`
+- `docs/product/contentflow-porting-map.md`
+
+**新增權威要求：**
+
+- Phase 8 必須實作 Workspace Brand / Knowledge Base、Evidence Retrieval / Source Pack、Grounded Content Brief Builder、Grounded Content Compiler、Claim / Source Verification Gate、Content QA / Human Review、Content Cost / Capacity Controls。
+- ContentFlow 只能作邏輯參考；不得直接依賴 ContentFlow runtime。
+- 所有 knowledge retrieval 必須以 `workspace_id` 隔離，禁止跨租戶資料用於生成。
+- 沒有足夠 evidence 的 claim 不可 publish-ready，必須進入 `needs_human_evidence`、`blocked` 或人工補資料流程。
+
+---
+
+### 2026-06-14 規格修訂 — 顧問策略面談 / 關鍵字金字塔 / 交付承諾
+
+**原因：**
+
+- SEO 顧問實務不是先由系統任意挑 keyword，而是先與客戶面談，理解公司、產品、服務、市場、競品、未來目標、主力產品與客戶族群。
+- 新網站或新市場可能沒有 GSC 資料，不能把 GSC 當成唯一發動來源。
+- 顧問需要能與客戶承諾每月 / 每季內容、refresh、FAQ / schema、技術修復與報表交付量；純 opportunity-driven 會讓掌握度不足。
+- 自然曝光最大化必須受 business scope 約束，不能推薦客戶不賣、不服務或不想進入的市場 / 關鍵字。
+
+**本次修訂文件：**
+
+- `docs/product/exposureflow-development-plan.md`
+- `docs/product/product-north-star-spec.md`
+
+**新增權威要求：**
+
+- 新增 Strategy Intake / Business Scope Layer：Business Intake、Product / Solution Scope、Target Market / Competitor Map、Keyword Pyramid、Business Fit Gate、Delivery Commitment。
+- 新增 cold-start 流程：以顧問核准的 keyword pyramid、產品範圍、競品 / SERP research 啟動新站 / 新市場。
+- Opportunity Generator 新增 OG-016 / OG-017，支援 cold-start candidate 與 out-of-scope keyword 阻擋。
+- Opportunity Scorer 新增 `business_fit_score`，且 `business_fit_score = 0` 時不得進入內容生成或 publish-ready。
+- Roadmap Builder 必須同時考慮 exposure priority 與 delivery commitment，顯示承諾量、已排程量、已完成量與缺口。
 

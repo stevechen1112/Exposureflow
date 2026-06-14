@@ -65,3 +65,34 @@ def test_generate_candidates_ordering() -> None:
     ]
     ranked = generate_candidates_from_opportunities(opps)
     assert ranked[0].action_type == "technical_fix"
+
+
+def test_blocked_technical_fix_does_not_get_rank_boost() -> None:
+    from exposureflow_api.strategy.business_fit import BusinessFitResult
+
+    opp = SimpleNamespace(
+        id="33333333-3333-3333-3333-333333333333",
+        opportunity_type="technical_fix",
+        exposure_asset_id=None,
+        keyword="blocked kw",
+        current_url="https://example.com/x",
+        target_url=None,
+        search_context=None,
+        priority="critical",
+        total_opportunity_score=70.0,
+        current_impressions=100,
+        current_position=None,
+        reason="blocked",
+        evidence_json={},
+    )
+    fit = BusinessFitResult(
+        business_fit_score=0.0,
+        business_fit_status="blocked",
+        keyword_pyramid_node_id=None,
+        product_service_scope_id=None,
+        blocked=True,
+        evidence={"status": "blocked"},
+    )
+    candidate = opportunity_to_candidate(opp, fit=fit)
+    assert candidate.action_type == "no_op"
+    assert candidate.rank_score == 0.0

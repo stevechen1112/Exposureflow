@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.auth.jwt import AuthContext
 from exposureflow_api.auth.permissions import require_permission
-from exposureflow_api.common.errors import APIError, not_found
+from exposureflow_api.common.errors import APIError
 from exposureflow_api.database import get_db
 from exposureflow_api.decision import service
 from exposureflow_api.decision.schemas import (
@@ -131,6 +131,19 @@ async def defer_candidate(
     await db.commit()
     await db.refresh(decision)
     return decision
+
+
+@router.get("/outcomes")
+async def list_action_outcomes(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    from exposureflow_api.decision.outcomes import list_action_outcomes as fetch_outcomes
+
+    return await fetch_outcomes(db, workspace_id, site_id)
 
 
 @router.get("/roadmaps", response_model=list[RoadmapResponse])

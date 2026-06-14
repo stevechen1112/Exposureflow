@@ -38,6 +38,19 @@ from exposureflow_api.models import (
 router = APIRouter(prefix="/api/v1/ai-visibility", tags=["ai-visibility"])
 
 
+@router.get("/dashboard")
+async def get_ai_visibility_dashboard(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    from exposureflow_api.ai_visibility.dashboard import build_ai_visibility_dashboard
+
+    return await build_ai_visibility_dashboard(db, workspace_id, site_id)
+
+
 async def _validate_topic_cluster(
     db: AsyncSession,
     workspace_id: UUID,

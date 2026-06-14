@@ -1,1 +1,1 @@
-"""execution module — see exposureflow-development-plan.md."""
+"""Execution plane — grounded content jobs and adapters."""

@@ -23,6 +23,7 @@ from exposureflow_api.models import (
     Roadmap,
     RoadmapItem,
 )
+from exposureflow_api.strategy.business_fit import evaluate_keyword_fit, load_pyramid_index
 
 
 async def generate_action_candidates(
@@ -50,7 +51,12 @@ async def generate_action_candidates(
     opportunities = [
         opp for opp in opps_result.scalars().all() if opp.id not in existing_opp_ids
     ]
-    generated = generate_candidates_from_opportunities(opportunities)
+    nodes_by_keyword, scopes_by_id = await load_pyramid_index(db, workspace_id, site_id)
+    fit_by_opp_id = {
+        opp.id: evaluate_keyword_fit(opp.keyword, nodes_by_keyword, scopes_by_id)
+        for opp in opportunities
+    }
+    generated = generate_candidates_from_opportunities(opportunities, fit_by_opp_id=fit_by_opp_id)
     created = 0
     for item in generated:
         db.add(

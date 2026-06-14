@@ -14,8 +14,14 @@ from exposureflow_api.integrations.router import router as integrations_router
 from exposureflow_api.serp.router import router as serp_router
 from exposureflow_api.ai_visibility.router import router as ai_visibility_router
 from exposureflow_api.decision.router import router as decision_router
+from exposureflow_api.strategy.router import router as strategy_router
+from exposureflow_api.knowledge.router import router as knowledge_router
+from exposureflow_api.execution.router import router as execution_router
+from exposureflow_api.content.router import router as content_router
 from exposureflow_api.topics.router import router as topics_router
 from exposureflow_api.tenants.router import router as tenants_router
+from exposureflow_api.reporting.router import router as reporting_router
+from exposureflow_api.reporting.client_router import router as client_portal_router
 
 
 @asynccontextmanager
@@ -50,6 +56,12 @@ app.include_router(topics_router)
 app.include_router(serp_router)
 app.include_router(ai_visibility_router)
 app.include_router(decision_router)
+app.include_router(strategy_router)
+app.include_router(knowledge_router)
+app.include_router(execution_router)
+app.include_router(content_router)
+app.include_router(reporting_router)
+app.include_router(client_portal_router)
 
 
 @app.get("/health")

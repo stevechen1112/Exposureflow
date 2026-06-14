@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+from uuid import UUID
+
+if TYPE_CHECKING:
+    from exposureflow_api.strategy.business_fit import BusinessFitResult
 
 PRIORITY_TO_RISK = {
     "critical": "high",
@@ -54,7 +59,10 @@ def _action_payload(opportunity) -> dict:
     }
 
 
-def opportunity_to_candidate(opportunity) -> GeneratedCandidate:
+def opportunity_to_candidate(
+    opportunity,
+    fit: BusinessFitResult | None = None,
+) -> GeneratedCandidate:
     """Map one open opportunity to a deterministic action candidate."""
     evidence = dict(opportunity.evidence_json or {})
     evidence.update(
@@ -71,17 +79,30 @@ def opportunity_to_candidate(opportunity) -> GeneratedCandidate:
     )
     impact = float(opportunity.total_opportunity_score or 0)
     rank_score = impact
-    if opportunity.opportunity_type in TECHNICAL_ACTION_TYPES:
+    action_type = opportunity.opportunity_type
+    risk_level = _risk_from_priority(opportunity.priority)
+
+    if fit is not None:
+        evidence["business_fit"] = fit.evidence
+        evidence["business_fit_score"] = fit.business_fit_score
+        rank_score *= fit.business_fit_score
+        if fit.blocked:
+            action_type = "no_op"
+            risk_level = "blocked"
+            evidence["blocked_reason"] = "OG-017: out_of_scope or blocked keyword"
+            rank_score = 0.0
+
+    if opportunity.opportunity_type in TECHNICAL_ACTION_TYPES and action_type != "no_op":
         rank_score += 25.0
     return GeneratedCandidate(
         opportunity_id=str(opportunity.id),
-        action_type=opportunity.opportunity_type,
+        action_type=action_type,
         target_asset_id=str(opportunity.exposure_asset_id)
         if opportunity.exposure_asset_id
         else None,
         action_payload_json=_action_payload(opportunity),
         expected_exposure_impact=impact,
-        risk_level=_risk_from_priority(opportunity.priority),
+        risk_level=risk_level,
         required_inputs_json=_required_inputs(opportunity),
         evidence_json=evidence,
         created_by="rule",
@@ -89,9 +110,19 @@ def opportunity_to_candidate(opportunity) -> GeneratedCandidate:
     )
 
 
-def generate_candidates_from_opportunities(opportunities: list) -> list[GeneratedCandidate]:
+def generate_candidates_from_opportunities(
+    opportunities: list,
+    *,
+    fit_by_opp_id: dict[UUID, BusinessFitResult] | None = None,
+) -> list[GeneratedCandidate]:
     """Deterministic ordering: higher rank_score first, then opportunity_id."""
-    generated = [opportunity_to_candidate(opp) for opp in opportunities]
+    generated = [
+        opportunity_to_candidate(
+            opp,
+            fit=(fit_by_opp_id or {}).get(opp.id),
+        )
+        for opp in opportunities
+    ]
     return sorted(
         generated,
         key=lambda c: (-c.rank_score, c.opportunity_id),

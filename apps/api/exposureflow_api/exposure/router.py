@@ -14,6 +14,7 @@ from exposureflow_api.exposure.owner_classification import (
     load_competitor_domains,
 )
 from exposureflow_api.exposure.schemas import (
+    DashboardResponse,
     ExposureAssetResponse,
     MergeAssetsRequest,
     OpportunityResponse,
@@ -21,6 +22,19 @@ from exposureflow_api.exposure.schemas import (
 from exposureflow_api.models import ExposureAsset, ExposureOpportunity
 
 router = APIRouter(prefix="/api/v1/exposure", tags=["exposure"])
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+async def get_dashboard(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    from exposureflow_api.exposure.dashboard import build_dashboard_metrics
+
+    return await build_dashboard_metrics(db, workspace_id, site_id)
 
 
 @router.post("/sites/{site_id}/assets/import-gsc")

@@ -31,6 +31,28 @@ from exposureflow_api.models.decision import (
     Roadmap,
     RoadmapItem,
 )
+from exposureflow_api.models.strategy import (
+    BusinessIntake,
+    DeliveryCommitment,
+    KeywordPyramidNode,
+    ProductServiceScope,
+)
+from exposureflow_api.models.knowledge import (
+    KnowledgeFact,
+    KnowledgeSource,
+    WorkspaceBrandProfile,
+)
+from exposureflow_api.models.execution_content import (
+    ContentBrief,
+    ContentClaim,
+    ContentGateResult,
+    ContentGenerationRun,
+    ContentSourcePack,
+    ExecutionJob,
+)
+from exposureflow_api.models.commercial import UsageEvent
+from exposureflow_api.models.reporting import Report
+from exposureflow_api.models.client_deliverables import ClientMeetingNote, DeliveryAnnotation
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -83,6 +105,23 @@ __all__ = [
     "ActionDecision",
     "Roadmap",
     "RoadmapItem",
+    "BusinessIntake",
+    "ProductServiceScope",
+    "KeywordPyramidNode",
+    "DeliveryCommitment",
+    "WorkspaceBrandProfile",
+    "KnowledgeSource",
+    "KnowledgeFact",
+    "ExecutionJob",
+    "ContentSourcePack",
+    "ContentBrief",
+    "ContentGenerationRun",
+    "ContentClaim",
+    "ContentGateResult",
+    "UsageEvent",
+    "Report",
+    "ClientMeetingNote",
+    "DeliveryAnnotation",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",
