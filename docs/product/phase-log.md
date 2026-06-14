@@ -29,7 +29,7 @@
 | 3 | Exposure Core | completed | 40bd83a | 2026-06-14 | EF-0301–0303 + 補強 |
 | 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
 | 5 | SERP Matrix | completed | 5c87603 | 2026-06-14 | EF-0501–0503 + 補強 |
-| 6 | AI Visibility | completed | _(本次 commit)_ | 2026-06-14 | EF-0601–0604 + 補強 |
+| 6 | AI Visibility | completed | 49942b4 | 2026-06-14 | EF-0601–0604 + 補強 |
 | 7 | Decision Plane | in_progress | — | — | |
 | 8 | Execution Plane | pending | — | — | |
 | 9 | Dashboard / UX | pending | — | — | |
