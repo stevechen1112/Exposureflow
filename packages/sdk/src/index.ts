@@ -455,6 +455,18 @@ export class ExposureFlowClient {
       body: JSON.stringify(body),
     });
   }
+
+  getLaunchReadiness(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/launch/readiness`);
+  }
+
+  internalLaunchChecklist(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/launch/checklist`);
+  }
+
+  internalBusinessMetrics(days = 30): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/business-metrics?days=${days}`);
+  }
 }
 
 export function createClient(options: ExposureFlowClientOptions) {

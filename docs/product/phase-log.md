@@ -36,8 +36,8 @@
 | 10 | Reporting | completed | 0b589dc | 2026-06-14 | EF-1001–1002；review 見 `phase-10-review.md` |
 | 11 | SaaS Commercial | completed | 125e4b1 | 2026-06-14 | EF-1101–1104；review 見 `phase-11-review.md` |
 | 12 | Security / Reliability | completed | f2e4065, fab11d8 | 2026-06-14 | EF-1201–1204；review 見 `phase-12-review.md` |
-| 13 | Internal Admin / CS | completed | — | 2026-06-14 | EF-1301–1306；review 見 `phase-13-review.md` |
-| 14 | Production Launch | pending | — | — | |
+| 13 | Internal Admin / CS | completed | 3b50923 | 2026-06-14 | EF-1301–1306；review 見 `phase-13-review.md` |
+| 14 | Production Launch | completed | 98fb13a | 2026-06-14 | EF-1401–1403；review 見 `phase-14-review.md` |
 
 ## Phase 詳細紀錄
 
@@ -307,4 +307,19 @@
 - Opportunity Generator 新增 OG-016 / OG-017，支援 cold-start candidate 與 out-of-scope keyword 阻擋。
 - Opportunity Scorer 新增 `business_fit_score`，且 `business_fit_score = 0` 時不得進入內容生成或 publish-ready。
 - Roadmap Builder 必須同時考慮 exposure priority 與 delivery commitment，顯示承諾量、已排程量、已完成量與缺口。
+
+---
+
+## Phase 0–14 完成總報告（2026-06-14）
+
+ExposureFlow 已依開發計畫完成 **Phase 0 → Phase 14** 全產品實作。Review 證據：`docs/product/phase-0-review.md` … `phase-14-review.md`。
+
+**Local dev 啟動：**
+
+1. `docker compose -f infra/docker/docker-compose.yml up -d`
+2. `cd apps/api && alembic upgrade head` → 啟動 API
+3. `cd apps/web && npm run dev`
+4. Marketing：`http://localhost:3000` · Dev 登入：`/app-entry` · Internal Admin：`/internal-admin/workspaces`
+
+**Launch 驗收：** `GET /api/v1/launch/readiness` 或 Internal Admin → Launch Readiness
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ensureInternalAdminSession } from "@/lib/internal-api-client";
 
 const NAV = [
+  { href: "/internal-admin/launch", label: "Launch Readiness" },
   { href: "/internal-admin/workspaces", label: "Workspaces" },
   { href: "/internal-admin/jobs", label: "Jobs & Sync" },
   { href: "/internal-admin/audit", label: "Audit Logs" },
