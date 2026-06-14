@@ -26,6 +26,8 @@ from exposureflow_api.billing.router import router as billing_router, webhook_ro
 from exposureflow_api.billing.service import seed_plans
 from exposureflow_api.agency.router import router as agency_router
 from exposureflow_api.security.router import router as security_router
+from exposureflow_api.internal_admin.router import router as internal_admin_router
+from exposureflow_api.notifications.router import router as notifications_router
 from exposureflow_api.ops.router import router as ops_router
 from exposureflow_api.observability.logging import configure_logging
 from exposureflow_api.observability.middleware import ObservabilityMiddleware
@@ -37,6 +39,7 @@ async def lifespan(_app: FastAPI):
     async with async_session_factory() as session:
         await tenant_service.seed_job_definitions(session)
         await seed_plans(session)
+        await tenant_service.bootstrap_platform_support(session)
         await session.commit()
     yield
 
@@ -77,6 +80,8 @@ app.include_router(stripe_webhook_router)
 app.include_router(agency_router)
 app.include_router(security_router)
 app.include_router(ops_router)
+app.include_router(internal_admin_router)
+app.include_router(notifications_router)
 
 
 @app.get("/health")

@@ -190,5 +190,12 @@ async def impersonate_user(
     await db.commit()
     await db.refresh(session)
 
-    token = create_access_token(target.id, target.email, target.name)
+    token = create_access_token(
+        target.id,
+        target.email,
+        target.name,
+        impersonated_by=user_ctx.user_id,
+        impersonation_session_id=session.id,
+        expire_minutes=60,
+    )
     return ImpersonationResponse(access_token=token, impersonation_session_id=session.id)

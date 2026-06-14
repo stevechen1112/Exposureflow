@@ -60,6 +60,7 @@ async def engine():
     async with async_session_factory() as session:
         await tenant_service.seed_job_definitions(session)
         await seed_plans(session)
+        await tenant_service.bootstrap_platform_support(session)
         await session.commit()
     yield engine
     await engine.dispose()

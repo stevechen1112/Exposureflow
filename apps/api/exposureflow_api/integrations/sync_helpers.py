@@ -212,6 +212,23 @@ def mark_sync_failure(state: IntegrationSyncState, error: str | Exception) -> No
     state.last_error = sanitize_sync_error(error)
 
 
+async def mark_sync_failure_with_notify(
+    db: AsyncSession,
+    state: IntegrationSyncState,
+    error: str | Exception,
+) -> None:
+    mark_sync_failure(state, error)
+    from exposureflow_api.notifications import service as notification_service
+
+    await notification_service.notify_sync_failure(
+        db,
+        workspace_id=state.workspace_id,
+        site_id=state.site_id,
+        provider=state.provider,
+        error=sanitize_sync_error(error),
+    )
+
+
 async def finalize_job_run(
     run: JobRun,
     *,

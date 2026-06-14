@@ -94,6 +94,17 @@ async def check_quota(
     limit = await get_metric_limit(db, ws.account_id, metric)
     used = await count_monthly_usage(db, workspace_id, metric)
     if used + quantity > limit:
+        try:
+            from exposureflow_api.database import async_session_factory
+            from exposureflow_api.notifications import service as notification_service
+
+            async with async_session_factory() as notify_session:
+                await notification_service.notify_quota_warning(
+                    notify_session, workspace_id=workspace_id, metric=metric, used=used, limit=limit
+                )
+                await notify_session.commit()
+        except Exception:  # noqa: BLE001
+            pass
         raise APIError(
             code="QUOTA_EXCEEDED",
             message=f"Monthly quota exceeded for {metric}.",

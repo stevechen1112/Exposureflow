@@ -90,6 +90,44 @@ async def bootstrap_dev_user_workspace(
     return user, workspace
 
 
+async def bootstrap_platform_support(db: AsyncSession) -> User | None:
+    """Seed platform support admin for internal ops (dev/local only)."""
+    from exposureflow_api.config import settings
+
+    if settings.app_env == "production":
+        return None
+
+    email = "support@example.com"
+    user = await get_user_by_email(db, email)
+    if user is None:
+        user = User(email=email, name="Platform Support")
+        db.add(user)
+        await db.flush()
+        db.add(UserSecurity(user_id=user.id, email_verified=True))
+
+    workspaces = list((await db.execute(select(Workspace).where(Workspace.status == "active").limit(5))).scalars().all())
+    if not workspaces:
+        return None
+
+    for ws in workspaces[:1]:
+        existing = await db.execute(
+            select(WorkspaceMembership).where(
+                WorkspaceMembership.workspace_id == ws.id,
+                WorkspaceMembership.user_id == user.id,
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            db.add(
+                WorkspaceMembership(
+                    workspace_id=ws.id,
+                    user_id=user.id,
+                    role="support_admin",
+                )
+            )
+    await db.flush()
+    return user
+
+
 async def create_workspace_for_user(
     db: AsyncSession,
     user: User,

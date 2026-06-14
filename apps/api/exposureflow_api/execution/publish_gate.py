@@ -212,5 +212,14 @@ async def run_publish_gate(
         run.status = "publish_ready"
     elif evaluation.status == "needs_review":
         run.status = "needs_review"
+        from exposureflow_api.notifications import service as notification_service
+
+        await notification_service.notify_approval_required(
+            db,
+            workspace_id=workspace_id,
+            target_type="content_generation_run",
+            target_id=run.id,
+            title=f"內容待審核：{brief.brief_json.get('title', run.id)}",
+        )
     await db.flush()
     return gate

@@ -35,8 +35,8 @@
 | 9 | Dashboard / UX | completed | 0b589dc | 2026-06-14 | EF-0901–0910；review 見 `phase-9-review.md` |
 | 10 | Reporting | completed | 0b589dc | 2026-06-14 | EF-1001–1002；review 見 `phase-10-review.md` |
 | 11 | SaaS Commercial | completed | 125e4b1 | 2026-06-14 | EF-1101–1104；review 見 `phase-11-review.md` |
-| 12 | Security / Reliability | review | — | 2026-06-14 | EF-1201–1204；review 見 `phase-12-review.md`（待 commit） |
-| 13 | Internal Admin / CS | pending | — | — | |
+| 12 | Security / Reliability | completed | f2e4065, fab11d8 | 2026-06-14 | EF-1201–1204；review 見 `phase-12-review.md` |
+| 13 | Internal Admin / CS | completed | — | 2026-06-14 | EF-1301–1306；review 見 `phase-13-review.md` |
 | 14 | Production Launch | pending | — | — | |
 
 ## Phase 詳細紀錄

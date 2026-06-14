@@ -22,6 +22,8 @@ class AuthContext(BaseModel):
     email: str
     name: str
     amr: list[str] = []
+    impersonated_by: UUID | None = None
+    impersonation_session_id: UUID | None = None
 
 
 def create_access_token(
@@ -30,8 +32,12 @@ def create_access_token(
     name: str,
     *,
     amr: list[str] | None = None,
+    impersonated_by: UUID | None = None,
+    impersonation_session_id: UUID | None = None,
+    expire_minutes: int | None = None,
 ) -> str:
-    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    ttl = expire_minutes if expire_minutes is not None else ACCESS_TOKEN_EXPIRE_MINUTES
+    expire = datetime.now(UTC) + timedelta(minutes=ttl)
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "email": email,
@@ -40,6 +46,10 @@ def create_access_token(
     }
     if amr:
         payload["amr"] = amr
+    if impersonated_by:
+        payload["impersonated_by"] = str(impersonated_by)
+    if impersonation_session_id:
+        payload["impersonation_session_id"] = str(impersonation_session_id)
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 
@@ -51,6 +61,10 @@ def decode_access_token(token: str) -> AuthContext:
             email=payload["email"],
             name=payload["name"],
             amr=list(payload.get("amr") or []),
+            impersonated_by=UUID(payload["impersonated_by"]) if payload.get("impersonated_by") else None,
+            impersonation_session_id=(
+                UUID(payload["impersonation_session_id"]) if payload.get("impersonation_session_id") else None
+            ),
         )
     except (JWTError, KeyError, ValueError) as exc:
         raise ValueError("Invalid token") from exc

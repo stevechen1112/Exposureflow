@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     kms_key_id: str | None = None
     trust_proxy_headers: bool = False
+    notification_email_enabled: bool = False
 
 
 settings = Settings()

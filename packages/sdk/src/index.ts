@@ -344,6 +344,117 @@ export class ExposureFlowClient {
       body: JSON.stringify(body),
     });
   }
+
+  listNotifications(status?: string): Promise<Array<Record<string, unknown>>> {
+    const q = status ? `?status=${encodeURIComponent(status)}` : "";
+    return request(this.options, `/api/v1/notifications${q}`);
+  }
+
+  markNotificationRead(notificationId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/notifications/${notificationId}/read`, { method: "POST" });
+  }
+
+  markAllNotificationsRead(): Promise<{ status: string }> {
+    return request(this.options, `/api/v1/notifications/read-all`, { method: "POST" });
+  }
+
+  createSupportTicket(body: { subject: string; description: string; priority?: string }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/support/tickets`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listSupportTickets(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/support/tickets`);
+  }
+
+  getPublicStatus(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/status`);
+  }
+
+  internalListWorkspaces(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/workspaces`);
+  }
+
+  internalListAccounts(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/accounts`);
+  }
+
+  internalSearchUsers(email?: string): Promise<Array<Record<string, unknown>>> {
+    const q = email ? `?email=${encodeURIComponent(email)}` : "";
+    return request(this.options, `/api/v1/internal/users${q}`);
+  }
+
+  internalListJobs(params?: { workspace_id?: string; status?: string }): Promise<Array<Record<string, unknown>>> {
+    const search = new URLSearchParams();
+    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
+    if (params?.status) search.set("status", params.status);
+    const q = search.toString();
+    return request(this.options, `/api/v1/internal/jobs${q ? `?${q}` : ""}`);
+  }
+
+  internalListSyncStates(params?: { workspace_id?: string; failing_only?: boolean }): Promise<Array<Record<string, unknown>>> {
+    const search = new URLSearchParams();
+    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
+    if (params?.failing_only) search.set("failing_only", "true");
+    const q = search.toString();
+    return request(this.options, `/api/v1/internal/sync-states${q ? `?${q}` : ""}`);
+  }
+
+  internalListAuditLogs(params?: { workspace_id?: string; action_prefix?: string }): Promise<Array<Record<string, unknown>>> {
+    const search = new URLSearchParams();
+    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
+    if (params?.action_prefix) search.set("action_prefix", params.action_prefix);
+    const q = search.toString();
+    return request(this.options, `/api/v1/internal/audit-logs${q ? `?${q}` : ""}`);
+  }
+
+  internalUpdateFeatureFlags(workspaceId: string, featureFlags: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/workspaces/${workspaceId}/feature-flags`, {
+      method: "PATCH",
+      body: JSON.stringify({ feature_flags: featureFlags }),
+    });
+  }
+
+  internalCsActivation(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/cs/activation`);
+  }
+
+  internalCsFunnel(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/cs/onboarding-funnel`);
+  }
+
+  internalIntegrationHealth(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/integration-health`);
+  }
+
+  internalProviderCosts(days = 30): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/provider-costs?days=${days}`);
+  }
+
+  internalListSupportTickets(workspaceId?: string): Promise<Array<Record<string, unknown>>> {
+    const q = workspaceId ? `?workspace_id=${workspaceId}` : "";
+    return request(this.options, `/api/v1/internal/support/tickets${q}`);
+  }
+
+  internalListStatusIncidents(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/status/incidents`);
+  }
+
+  internalCreateStatusIncident(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/status/incidents`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  internalImpersonate(body: { target_user_id: string; workspace_id?: string; reason: string }): Promise<{ access_token: string }> {
+    return request(this.options, `/api/v1/internal/impersonate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
 }
 
 export function createClient(options: ExposureFlowClientOptions) {

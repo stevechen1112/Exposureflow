@@ -13,7 +13,7 @@ from exposureflow_api.integrations.sync_helpers import (
     get_credential,
     get_or_create_sync_state,
     get_site,
-    mark_sync_failure,
+    mark_sync_failure_with_notify,
     mark_sync_success,
     parse_last_sync_date,
     upsert_bing_rows,
@@ -81,7 +81,7 @@ async def run_bing_sync(db: AsyncSession, run: JobRun) -> None:
             provider="bing_webmaster",
         )
     except Exception as exc:  # noqa: BLE001
-        mark_sync_failure(state, str(exc))
+        await mark_sync_failure_with_notify(db, state, str(exc))
         await finalize_job_run(
             run,
             success=False,

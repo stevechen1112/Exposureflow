@@ -70,6 +70,11 @@ async def _persist_report(
         actor_user_id=user.user_id,
         metadata={"site_id": str(site_id), "report_type": report_type, "delivery_mode": delivery_mode},
     )
+    from exposureflow_api.notifications import service as notification_service
+
+    await notification_service.notify_report_ready(
+        db, workspace_id=workspace_id, report_id=row.id, title=title
+    )
     await db.commit()
     await db.refresh(row)
     return row
