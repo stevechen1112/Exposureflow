@@ -27,7 +27,7 @@
 | 1 | 多租戶基礎架構 | completed | 06d85f4 | 2026-06-14 | EF-0101–0104 |
 | 2 | 資料接入層 | completed | 8c0b4c7 | 2026-06-14 | EF-0201–0205 完整 review |
 | 3 | Exposure Core | completed | 40bd83a | 2026-06-14 | EF-0301–0303 + 補強 |
-| 4 | Topic Graph | completed | _(本次 commit)_ | 2026-06-14 | EF-0401–0403 + 補強 |
+| 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
 | 5 | SERP Matrix | in_progress | — | — | |
 | 6 | AI Visibility | pending | — | — | |
 | 7 | Decision Plane | pending | — | — | |
