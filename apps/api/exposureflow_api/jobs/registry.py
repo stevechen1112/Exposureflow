@@ -44,6 +44,13 @@ JOB_DEFINITIONS: list[dict[str, str | int | bool | None]] = [
         "max_retries": 2,
     },
     {
+        "job_type": "topic_graph.rebuild",
+        "description": "Rebuild topic coverage graph from GSC and SERP",
+        "default_schedule": "0 7 * * 1",
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
         "job_type": "exposure.aggregate",
         "description": "Exposure core daily aggregation",
         "default_schedule": "0 1 * * *",

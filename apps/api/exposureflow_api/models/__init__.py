@@ -9,6 +9,13 @@ from exposureflow_api.models.ingestion import (
     TechnicalIssue,
 )
 from exposureflow_api.models.exposure import Competitor, ExposureAsset, ExposureOpportunity
+from exposureflow_api.models.topic import (
+    CannibalizationCase,
+    ExposureTheme,
+    InternalLinkSuggestion,
+    TopicCluster,
+    TopicNode,
+)
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -45,6 +52,11 @@ __all__ = [
     "ExposureAsset",
     "ExposureOpportunity",
     "Competitor",
+    "ExposureTheme",
+    "TopicCluster",
+    "TopicNode",
+    "CannibalizationCase",
+    "InternalLinkSuggestion",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",

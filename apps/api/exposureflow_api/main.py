@@ -9,6 +9,7 @@ from exposureflow_api.database import async_session_factory
 from exposureflow_api.tenants import service as tenant_service
 from exposureflow_api.auth.router import router as auth_router
 from exposureflow_api.competitors.router import router as competitors_router
+from exposureflow_api.topics.router import router as topics_router
 from exposureflow_api.exposure.router import router as exposure_router
 from exposureflow_api.integrations.router import router as integrations_router
 from exposureflow_api.tenants.router import router as tenants_router
@@ -42,6 +43,7 @@ app.include_router(auth_router)
 app.include_router(integrations_router)
 app.include_router(exposure_router)
 app.include_router(competitors_router)
+app.include_router(topics_router)
 
 
 @app.get("/health")

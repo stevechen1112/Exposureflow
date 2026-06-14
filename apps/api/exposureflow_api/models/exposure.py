@@ -19,7 +19,9 @@ class ExposureAsset(Base, TimestampMixin):
     site_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sites.id"), nullable=False, index=True
     )
-    topic_cluster_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    topic_cluster_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topic_clusters.id"), nullable=True
+    )
     asset_type: Mapped[str] = mapped_column(String(32), nullable=False, default="page")
     url: Mapped[str] = mapped_column(Text, nullable=False)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -44,7 +46,9 @@ class ExposureOpportunity(Base, TimestampMixin):
     site_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sites.id"), nullable=False, index=True
     )
-    topic_cluster_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    topic_cluster_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topic_clusters.id"), nullable=True
+    )
     exposure_asset_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("exposure_assets.id"), nullable=True
     )
