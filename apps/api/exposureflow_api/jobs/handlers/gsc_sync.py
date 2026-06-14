@@ -22,6 +22,10 @@ from exposureflow_api.models import JobRun
 
 
 async def run_gsc_sync(db: AsyncSession, run: JobRun) -> None:
+    from exposureflow_api.reliability.circuit_breaker import assert_provider_available
+
+    assert_provider_available("gsc")
+
     site_id = run.site_id
     if site_id is None:
         await finalize_job_run(

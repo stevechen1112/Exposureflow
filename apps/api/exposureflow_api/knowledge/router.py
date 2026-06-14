@@ -131,6 +131,28 @@ async def approve_source(
     return row
 
 
+@router.post("/sources/{source_id}/ingest")
+async def trigger_source_ingest(
+    source_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    user, _membership, workspace_id = ctx
+    src = await service.get_source(db, workspace_id, source_id)
+    from exposureflow_api.jobs.service import enqueue_job
+
+    run = await enqueue_job(
+        db,
+        workspace_id=workspace_id,
+        job_type="knowledge.source.ingest",
+        site_id=src.site_id,
+        input_json={"knowledge_source_id": str(source_id)},
+        idempotency_key=f"ingest-{source_id}",
+    )
+    await db.commit()
+    return {"job_run_id": str(run.id), "status": "queued"}
+
+
 @router.post("/sources/{source_id}/revoke", response_model=KnowledgeSourceResponse)
 async def revoke_source(
     source_id: UUID,

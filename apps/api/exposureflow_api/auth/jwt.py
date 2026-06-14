@@ -21,9 +21,16 @@ class AuthContext(BaseModel):
     user_id: UUID
     email: str
     name: str
+    amr: list[str] = []
 
 
-def create_access_token(user_id: UUID, email: str, name: str) -> str:
+def create_access_token(
+    user_id: UUID,
+    email: str,
+    name: str,
+    *,
+    amr: list[str] | None = None,
+) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload: dict[str, Any] = {
         "sub": str(user_id),
@@ -31,6 +38,8 @@ def create_access_token(user_id: UUID, email: str, name: str) -> str:
         "name": name,
         "exp": expire,
     }
+    if amr:
+        payload["amr"] = amr
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 
@@ -41,6 +50,7 @@ def decode_access_token(token: str) -> AuthContext:
             user_id=UUID(payload["sub"]),
             email=payload["email"],
             name=payload["name"],
+            amr=list(payload.get("amr") or []),
         )
     except (JWTError, KeyError, ValueError) as exc:
         raise ValueError("Invalid token") from exc

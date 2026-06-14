@@ -126,6 +126,29 @@ async def compile_generation_run(
     return row
 
 
+@router.get("/generation-runs", response_model=list[GenerationRunResponse])
+async def list_generation_runs(
+    site_id: UUID,
+    status: str | None = None,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    from sqlalchemy import select as sa_select
+    from exposureflow_api.models.execution_content import ContentGenerationRun
+
+    stmt = sa_select(ContentGenerationRun).where(
+        ContentGenerationRun.workspace_id == workspace_id,
+        ContentGenerationRun.site_id == site_id,
+    )
+    if status:
+        stmt = stmt.where(ContentGenerationRun.status == status)
+    stmt = stmt.order_by(ContentGenerationRun.created_at.desc()).limit(100)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
 @router.get("/generation-runs/{run_id}", response_model=GenerationRunResponse)
 async def get_generation_run(
     run_id: UUID,

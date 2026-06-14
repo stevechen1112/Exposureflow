@@ -78,7 +78,14 @@ async def verify_two_factor(
         actor_user_id=user_ctx.user_id,
     )
     await db.commit()
-    return {"enabled": True}
+    user = await db.get(User, user_ctx.user_id)
+    token = create_access_token(
+        user_ctx.user_id,
+        user.email if user else user_ctx.email,
+        user.name if user else user_ctx.name,
+        amr=["2fa"],
+    )
+    return {"enabled": True, "access_token": token}
 
 
 class ImpersonationRequest(BaseModel):

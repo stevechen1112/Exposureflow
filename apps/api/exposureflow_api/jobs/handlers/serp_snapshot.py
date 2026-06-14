@@ -15,6 +15,10 @@ from exposureflow_api.serp.service import sync_slot_targets_for_snapshot
 
 
 async def run_serp_snapshot(db: AsyncSession, run: JobRun) -> None:
+    from exposureflow_api.reliability.circuit_breaker import assert_provider_available
+
+    assert_provider_available("serp")
+
     site_id = run.site_id
     if site_id is None:
         await finalize_job_run(

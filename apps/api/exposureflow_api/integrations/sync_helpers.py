@@ -228,7 +228,15 @@ async def finalize_job_run(
     run.provider_cost_cents = cost_cents
     if success:
         run.status = "succeeded"
+        if provider:
+            from exposureflow_api.reliability.circuit_breaker import record_provider_success
+
+            record_provider_success(provider)
     else:
         run.status = "failed"
         run.error_code = error_code
         run.error_message = sanitize_sync_error(error_message) if error_message else None
+        if provider:
+            from exposureflow_api.reliability.circuit_breaker import record_provider_failure
+
+            record_provider_failure(provider)

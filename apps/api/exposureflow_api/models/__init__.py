@@ -51,6 +51,11 @@ from exposureflow_api.models.execution_content import (
     ExecutionJob,
 )
 from exposureflow_api.models.commercial import Plan, Subscription, UsageEvent, WorkspaceBranding, WorkspaceTransfer
+from exposureflow_api.models.security_compliance import (
+    DataExportRequest,
+    SecurityEvent,
+    WorkspaceSecuritySettings,
+)
 from exposureflow_api.models.reporting import Report
 from exposureflow_api.models.client_deliverables import ClientMeetingNote, DeliveryAnnotation
 from exposureflow_api.models.integrations import IntegrationCredential
@@ -123,6 +128,9 @@ __all__ = [
     "Subscription",
     "WorkspaceBranding",
     "WorkspaceTransfer",
+    "WorkspaceSecuritySettings",
+    "SecurityEvent",
+    "DataExportRequest",
     "Report",
     "ClientMeetingNote",
     "DeliveryAnnotation",

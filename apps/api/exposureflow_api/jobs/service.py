@@ -10,6 +10,7 @@ from exposureflow_api.jobs.celery_app import celery_app
 from exposureflow_api.jobs.handlers import dispatch_job_run
 from exposureflow_api.billing import quota as billing_quota
 from exposureflow_api.execution.capacity import record_usage_event
+from exposureflow_api.reliability.backpressure import assert_queue_capacity
 from exposureflow_api.models import JobDefinition, JobRun
 
 JOB_TYPE_QUOTA_METRIC: dict[str, str] = {
@@ -40,6 +41,8 @@ async def enqueue_job(
     metric = JOB_TYPE_QUOTA_METRIC.get(job_type)
     if metric:
         await billing_quota.check_quota(db, workspace_id, metric)
+
+    await assert_queue_capacity(db, workspace_id)
 
     definition = await _get_job_definition(db, job_type)
     run = JobRun(

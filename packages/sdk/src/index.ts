@@ -99,6 +99,11 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/ai-visibility/citations?site_id=${siteId}`);
   }
 
+  listAiProbeRuns(siteId: string, probeSetId?: string): Promise<Array<Record<string, unknown>>> {
+    const q = probeSetId ? `&probe_set_id=${encodeURIComponent(probeSetId)}` : "";
+    return request(this.options, `/api/v1/ai-visibility/runs?site_id=${siteId}${q}`);
+  }
+
   listBrandEntities(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/ai-visibility/brand-entities?site_id=${siteId}`);
   }
@@ -177,6 +182,62 @@ export class ExposureFlowClient {
 
   listExecutionJobs(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/execution/jobs?site_id=${siteId}`);
+  }
+
+  listGenerationRuns(siteId: string, status?: string): Promise<Array<Record<string, unknown>>> {
+    const q = status ? `&status=${encodeURIComponent(status)}` : "";
+    return request(this.options, `/api/v1/content/generation-runs?site_id=${siteId}${q}`);
+  }
+
+  approveGenerationRun(runId: string, rationale?: string, override = false): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/generation-runs/${runId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ rationale, override }),
+    });
+  }
+
+  requestChangesGenerationRun(runId: string, notes: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/generation-runs/${runId}/request-changes`, {
+      method: "POST",
+      body: JSON.stringify({ notes }),
+    });
+  }
+
+  createKnowledgeSource(body: {
+    site_id?: string;
+    title: string;
+    source_type: string;
+    source_url?: string;
+    content_text?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/knowledge/sources`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  approveKnowledgeSource(sourceId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/knowledge/sources/${sourceId}/approve`, { method: "POST" });
+  }
+
+  triggerKnowledgeIngest(sourceId: string): Promise<{ job_run_id: string }> {
+    return request(this.options, `/api/v1/knowledge/sources/${sourceId}/ingest`, { method: "POST" });
+  }
+
+  submitProbeRun(body: {
+    site_id: string;
+    probe_set_id: string;
+    surface: string;
+    prompt: string;
+    answer_text: string;
+    cited_urls?: string[];
+    mentioned_brands?: string[];
+    sentiment?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/ai-visibility/runs/assisted`, {
+      method: "POST",
+      body: JSON.stringify({ ...body, probe_mode: "assisted_manual" }),
+    });
   }
 
   listRoadmaps(siteId: string): Promise<Array<Record<string, unknown>>> {

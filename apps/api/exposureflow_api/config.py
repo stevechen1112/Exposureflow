@@ -21,5 +21,8 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = None
     stripe_publishable_key: str | None = None
 
+    kms_key_id: str | None = None
+    trust_proxy_headers: bool = False
+
 
 settings = Settings()
