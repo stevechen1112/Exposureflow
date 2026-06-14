@@ -3,7 +3,16 @@ name = "exposureflow-connectors"
 version = "0.1.0"
 description = "External data connectors — GSC, GA4, SERP, Bing, Tech SEO"
 requires-python = ">=3.11"
-dependencies = ["httpx>=0.28.0"]
+dependencies = [
+    "httpx>=0.28.0",
+    "google-auth>=2.37.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -11,3 +20,11 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["connectors"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

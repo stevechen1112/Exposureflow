@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.database import async_session_factory
 from exposureflow_api.jobs.celery_app import celery_app
+from exposureflow_api.jobs.handlers import dispatch_job_run
 from exposureflow_api.models import JobDefinition, JobRun
 
 
@@ -57,9 +58,7 @@ async def _execute_job_run_async(job_run_id: UUID) -> None:
         await db.commit()
 
         try:
-            run.output_json = {"message": f"Job {run.job_type} executed (stub handler)."}
-            run.status = "completed"
-            run.completed_at = datetime.now(UTC)
+            await dispatch_job_run(db, run)
         except Exception as exc:  # noqa: BLE001
             run.status = "failed"
             run.error_code = "JOB_EXECUTION_FAILED"

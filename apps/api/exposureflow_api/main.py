@@ -8,6 +8,7 @@ from exposureflow_api.config import settings
 from exposureflow_api.database import async_session_factory
 from exposureflow_api.tenants import service as tenant_service
 from exposureflow_api.auth.router import router as auth_router
+from exposureflow_api.integrations.router import router as integrations_router
 from exposureflow_api.tenants.router import router as tenants_router
 
 
@@ -36,6 +37,7 @@ app.add_middleware(
 
 app.include_router(tenants_router)
 app.include_router(auth_router)
+app.include_router(integrations_router)
 
 
 @app.get("/health")

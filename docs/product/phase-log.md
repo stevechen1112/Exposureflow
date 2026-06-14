@@ -24,8 +24,8 @@
 |-------|------|------|--------|----------|------|
 | 0 | 產品核心定義 | completed | 791ec51 | 2026-06-14 | EF-0001、EF-0002 |
 | 1 | 多租戶基礎架構 | completed | 06d85f4 | 2026-06-14 | EF-0101–0104 |
-| 2 | 資料接入層 | in_progress | — | — | EF-0201–0205 |
-| 3 | Exposure Core | pending | — | — | |
+| 2 | 資料接入層 | completed | — | 2026-06-14 | EF-0201–0205 |
+| 3 | Exposure Core | in_progress | — | — | EF-0301–0303 |
 | 4 | Topic Graph | pending | — | — | |
 | 5 | SERP Matrix | pending | — | — | |
 | 6 | AI Visibility | pending | — | — | |
@@ -97,3 +97,34 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 2：GSC / GA4 / SERP / Tech SEO / Bing connectors
+
+---
+
+### Phase 2 — 資料接入層
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- `packages/connectors/`（GSC、GA4、SERP、Tech SEO、Bing）
+- `apps/api/exposureflow_api/models/ingestion.py`
+- `apps/api/exposureflow_api/integrations/`（sync helpers、API routes）
+- `apps/api/exposureflow_api/jobs/handlers/`（gsc、ga4、serp、tech_seo、bing）
+- `alembic/versions/002_ingestion_layer.py`
+- `docs/product/phase-2-review.md`
+
+**驗收證據：**
+
+- EF-0201–0205 檢查表全數 PASS（見 `phase-2-review.md`）
+- `ruff check` 通過（connectors + api）
+- connectors unit tests 3/3 PASS
+
+**已知限制：**
+
+- 外部 API 需有效憑證與環境變數
+- EF-0206–0208 補強項待後續 Phase
+
+**下一 Phase 前置：**
+
+- 開始 Phase 3：ExposureAsset、ExposureOpportunity、Opportunity Scorer

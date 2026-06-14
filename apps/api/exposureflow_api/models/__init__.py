@@ -1,4 +1,13 @@
 from exposureflow_api.models.base import Base
+from exposureflow_api.models.ingestion import (
+    BingPerformanceRow,
+    Ga4PageMetric,
+    GscPerformanceRow,
+    IntegrationSyncState,
+    SerpQuerySnapshot,
+    SerpSlot,
+    TechnicalIssue,
+)
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -25,6 +34,13 @@ __all__ = [
     "WorkspaceMembership",
     "Site",
     "IntegrationCredential",
+    "IntegrationSyncState",
+    "GscPerformanceRow",
+    "Ga4PageMetric",
+    "BingPerformanceRow",
+    "SerpQuerySnapshot",
+    "SerpSlot",
+    "TechnicalIssue",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",

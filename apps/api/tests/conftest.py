@@ -1,5 +1,11 @@
 import asyncio
 import os
+import sys
+from pathlib import Path
+
+_CONNECTORS_SRC = Path(__file__).resolve().parents[3] / "packages" / "connectors" / "src"
+if _CONNECTORS_SRC.exists() and str(_CONNECTORS_SRC) not in sys.path:
+    sys.path.insert(0, str(_CONNECTORS_SRC))
 
 os.environ.setdefault(
     "DATABASE_URL",
@@ -11,7 +17,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from exposureflow_api.config import settings
 from exposureflow_api.database import async_session_factory

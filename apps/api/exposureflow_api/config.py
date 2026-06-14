@@ -14,5 +14,8 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     encryption_key: str = "change-me-32-byte-key-in-production"
 
+    serper_api_key: str | None = None
+    serpapi_api_key: str | None = None
+
 
 settings = Settings()

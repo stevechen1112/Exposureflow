@@ -30,6 +30,20 @@ JOB_DEFINITIONS: list[dict[str, str | int | bool | None]] = [
         "max_retries": 2,
     },
     {
+        "job_type": "bing.sync",
+        "description": "Bing Webmaster Tools incremental sync",
+        "default_schedule": "0 5 * * *",
+        "enabled": True,
+        "max_retries": 3,
+    },
+    {
+        "job_type": "integration.health_check",
+        "description": "Integration connectivity health check",
+        "default_schedule": "0 6 * * *",
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
         "job_type": "exposure.aggregate",
         "description": "Exposure core daily aggregation",
         "default_schedule": "0 1 * * *",
