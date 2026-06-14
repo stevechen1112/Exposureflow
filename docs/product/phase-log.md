@@ -6,7 +6,8 @@
 **驗收規則：**
 
 - 驗收單位 = **一個 Phase**
-- 每 Phase：完整 Code Review → 修復 → Commit → 標記 `completed` → **直接進下一 Phase**
+- **進入新 Phase 前**：重新閱讀 `docs/product/exposureflow-development-plan.md`（當前 Phase 第九章 + 第十六章補強），完成 Kickoff 後才寫碼（見 `AGENTS.md` §進入新 Phase 前）
+- 每 Phase：**完整 Code Review**（含 Bugbot、必要測試、Security Review）→ 修復 → Commit → 標記 `completed` → **直接進下一 Phase**
 - **不需**每 Phase 向使用者確認
 - **唯一使用者回報**：Phase 0–14 全部完成後
 
