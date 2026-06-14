@@ -26,8 +26,8 @@
 | 0 | 產品核心定義 | completed | 791ec51 | 2026-06-14 | EF-0001、EF-0002 |
 | 1 | 多租戶基礎架構 | completed | 06d85f4 | 2026-06-14 | EF-0101–0104 |
 | 2 | 資料接入層 | completed | 8c0b4c7 | 2026-06-14 | EF-0201–0205 完整 review |
-| 3 | Exposure Core | in_progress | — | — | EF-0301–0303 |
-| 4 | Topic Graph | pending | — | — | |
+| 3 | Exposure Core | completed | _(本次 commit)_ | 2026-06-14 | EF-0301–0303 + 補強 |
+| 4 | Topic Graph | in_progress | — | — | |
 | 5 | SERP Matrix | pending | — | — | |
 | 6 | AI Visibility | pending | — | — | |
 | 7 | Decision Plane | pending | — | — | |
@@ -129,3 +129,33 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 3：ExposureAsset、ExposureOpportunity、Opportunity Scorer
+
+---
+
+### Phase 3 — Exposure Core
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- `apps/api/exposureflow_api/models/exposure.py`
+- `apps/api/exposureflow_api/exposure/`（scorer、service、router、owner_classification）
+- `apps/api/exposureflow_api/competitors/router.py`
+- `alembic/versions/004_exposure_core.py`
+- `docs/product/phase-3-review.md`
+
+**驗收證據：**
+
+- EF-0301–0303 檢查表 PASS（見 `phase-3-review.md`）
+- `ruff check` 通過；scorer / owner classification 單元測試 6 passed
+- Bugbot + Security Review High 已修復
+
+**已知限制：**
+
+- OG-002+ 規則待 Phase 4–6 資料就緒後擴充
+- 整合測試需 CI Postgres
+
+**下一 Phase 前置：**
+
+- 開始 Phase 4：Topic Graph、Cannibalization、Internal Link Opportunity
