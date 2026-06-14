@@ -3,7 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from exposureflow_api.models.base import Base, TimestampMixin, new_uuid
 
@@ -34,6 +34,8 @@ class WorkspaceInvitation(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    workspace: Mapped["Workspace"] = relationship(back_populates="invitations")  # noqa: F821
 
 
 class ApiKey(Base, TimestampMixin):

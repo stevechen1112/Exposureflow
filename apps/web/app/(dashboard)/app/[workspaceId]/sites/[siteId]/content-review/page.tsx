@@ -85,6 +85,11 @@ export default function ContentReviewPage() {
   const [changesNote, setChangesNote] = useState("");
 
   const load = useCallback(async () => {
+    if (!siteId) {
+      setRuns([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const rows = await client.listGenerationRuns(siteId);

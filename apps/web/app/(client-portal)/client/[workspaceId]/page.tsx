@@ -201,7 +201,7 @@ export default function ClientPortalPage() {
                     marginLeft: "0.5rem",
                     fontSize: "0.8rem",
                     background: "var(--warning)",
-                    color: "#000",
+                    color: "var(--text)",
                     padding: "0.1rem 0.5rem",
                     borderRadius: 999,
                   }}

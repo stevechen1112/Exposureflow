@@ -1,17 +1,30 @@
 :root {
-  --bg: #0f1419;
-  --surface: #1a2332;
-  --surface-2: #243044;
-  --border: #2d3a4f;
-  --text: #e8edf4;
-  --muted: #8b9cb3;
-  --accent: #3b82f6;
-  --accent-soft: #1e3a5f;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  color-scheme: light;
+
+  /* Brand — natural exposure / clarity */
+  --bg: #f4f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-text: #1e40af;
+  --success: #16a34a;
+  --success-soft: #f0fdf4;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --owned-soft: #dcfce7;
+  --available-soft: #dbeafe;
+  --blocked-soft: #fee2e2;
   --radius: 10px;
-  --font: "IBM Plex Sans", "Noto Sans TC", system-ui, sans-serif;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.06);
+  --font: var(--font-sans), var(--font-tc), system-ui, sans-serif;
 }
 
 * {
@@ -25,6 +38,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -41,6 +55,7 @@ main {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .kpi-grid {
@@ -53,6 +68,7 @@ main {
   font-size: 1.75rem;
   font-weight: 600;
   margin: 0.25rem 0;
+  letter-spacing: -0.02em;
 }
 
 .kpi-label {
@@ -89,6 +105,7 @@ td {
 th {
   color: var(--muted);
   font-weight: 500;
+  background: var(--surface-2);
 }
 
 .badge {
@@ -97,31 +114,43 @@ th {
   border-radius: 999px;
   font-size: 0.75rem;
   background: var(--surface-2);
+  color: var(--muted);
 }
 
 .badge-critical {
-  background: #451a1a;
-  color: #fca5a5;
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .badge-high {
-  background: #422006;
-  color: #fdba74;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .btn {
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
   cursor: pointer;
   font: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
 }
 
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn:disabled {
@@ -139,6 +168,7 @@ th {
   background: var(--surface);
   border-right: 1px solid var(--border);
   padding: 1.25rem 1rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .sidebar nav a {
@@ -147,21 +177,26 @@ th {
   border-radius: 8px;
   color: var(--muted);
   margin-bottom: 0.25rem;
+  font-size: 0.9rem;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .sidebar nav a:hover,
 .sidebar nav a.active {
   background: var(--accent-soft);
-  color: var(--text);
+  color: var(--accent-text);
+  font-weight: 500;
 }
 
 .content {
   padding: 1.5rem 2rem;
+  background: var(--bg);
 }
 
 .page-title {
   margin: 0 0 0.25rem;
   font-size: 1.5rem;
+  letter-spacing: -0.02em;
 }
 
 .page-subtitle {
@@ -180,18 +215,22 @@ th {
   text-align: center;
   background: var(--surface-2);
   border-radius: 4px;
+  color: var(--text);
 }
 
 .matrix-owned {
-  background: #14532d;
+  background: var(--owned-soft);
+  color: #166534;
 }
 
 .matrix-available {
-  background: #1e3a5f;
+  background: var(--available-soft);
+  color: var(--accent-text);
 }
 
 .matrix-blocked {
-  background: #451a1a;
+  background: var(--blocked-soft);
+  color: var(--danger);
 }
 
 .form-row {
@@ -204,10 +243,26 @@ th {
 input,
 select,
 textarea {
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   font: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.marketing-shell {
+  background: var(--surface);
+  min-height: 100vh;
+}
+
+.marketing-hero {
+  background: linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
 }

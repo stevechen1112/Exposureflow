@@ -71,7 +71,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(32), nullable=False, server_default="investigating"),
         sa.Column("severity", sa.String(32), nullable=False, server_default="minor"),
         sa.Column("affected_components_json", postgresql.JSONB(), nullable=False, server_default="[]"),
-        sa.Column("is_public", sa.Boolean(), nullable=False, server_default=True),
+        sa.Column("is_public", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(

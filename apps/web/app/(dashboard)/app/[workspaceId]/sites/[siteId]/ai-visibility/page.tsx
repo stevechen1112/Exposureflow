@@ -181,7 +181,7 @@ export default function AiVisibilityPage() {
               borderRadius: 8,
               border: "1px solid var(--border)",
               background: activeTab === tab ? "var(--accent)" : "var(--surface-2)",
-              color: "var(--text)",
+              color: activeTab === tab ? "#ffffff" : "var(--text)",
               cursor: "pointer",
               font: "inherit",
               fontSize: "0.88rem",

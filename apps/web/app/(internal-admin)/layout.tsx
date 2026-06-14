@@ -66,7 +66,8 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
                   display: "block",
                   padding: "0.5rem 1.25rem",
                   background: active ? "var(--accent-soft)" : "transparent",
-                  color: active ? "var(--text)" : "var(--muted)",
+                  color: active ? "var(--accent-text)" : "var(--muted)",
+                  fontWeight: active ? 500 : 400,
                 }}
               >
                 {item.label}

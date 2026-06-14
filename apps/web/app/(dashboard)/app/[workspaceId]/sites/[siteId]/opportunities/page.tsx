@@ -176,7 +176,7 @@ export default function OpportunitiesPage() {
               borderRadius: 999,
               border: "1px solid var(--border)",
               background: filterStatus === s ? "var(--accent)" : "var(--surface-2)",
-              color: "var(--text)",
+              color: filterStatus === s ? "#ffffff" : "var(--text)",
               cursor: "pointer",
               font: "inherit",
               fontSize: "0.85rem",

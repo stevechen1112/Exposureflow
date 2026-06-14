@@ -42,6 +42,30 @@ async def list_user_workspaces(db: AsyncSession, user_id: UUID) -> list[tuple[Wo
     return list(result.all())
 
 
+async def _ensure_dev_demo_site(db: AsyncSession, workspace_id: UUID) -> None:
+    """Local dev: ensure at least one site so dashboard routes are usable."""
+    from exposureflow_api.config import settings
+
+    if settings.app_env == "production":
+        return
+
+    existing = await db.execute(select(Site.id).where(Site.workspace_id == workspace_id).limit(1))
+    if existing.scalar_one_or_none() is not None:
+        return
+
+    await create_site(
+        db,
+        workspace_id=workspace_id,
+        domain="demo.example.com",
+        site_name="Demo Site",
+        primary_locale="zh-TW",
+        target_countries=["TW"],
+        target_languages=["zh-TW"],
+        industry="saas",
+        business_model="b2b",
+    )
+
+
 async def bootstrap_dev_user_workspace(
     db: AsyncSession, email: str, name: str
 ) -> tuple[User, Workspace]:
@@ -54,7 +78,9 @@ async def bootstrap_dev_user_workspace(
 
     existing = await list_user_workspaces(db, user.id)
     if existing:
-        return user, existing[0][0]
+        workspace = existing[0][0]
+        await _ensure_dev_demo_site(db, workspace.id)
+        return user, workspace
 
     account = Account(name=f"{name} Account", account_type="direct")
     db.add(account)
@@ -87,6 +113,7 @@ async def bootstrap_dev_user_workspace(
     from exposureflow_api.billing.service import ensure_starter_subscription
 
     await ensure_starter_subscription(db, account.id)
+    await _ensure_dev_demo_site(db, workspace.id)
     return user, workspace
 
 

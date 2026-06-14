@@ -48,7 +48,7 @@ function StepIcon({ status }: { status: CheckStep["status"] }) {
           justifyContent: "center",
           flexShrink: 0,
           fontSize: "0.9rem",
-          color: "#000",
+          color: "var(--text)",
         }}
       >
         !
@@ -297,8 +297,8 @@ export default function OnboardingPage() {
                       <span
                         style={{
                           fontSize: "0.72rem",
-                          background: "#422006",
-                          color: "#fdba74",
+                          background: "var(--warning-soft)",
+                          color: "var(--warning)",
                           padding: "0.1rem 0.4rem",
                           borderRadius: 999,
                         }}

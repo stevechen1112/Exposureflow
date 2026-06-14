@@ -21,7 +21,6 @@ from exposureflow_api.internal_admin.schemas import (
     JobRunOverview,
     OnboardingFunnel,
     ProviderCostRow,
-    SupportTicketResponse,
     SyncStateOverview,
     UserOverview,
     WorkspaceOverview,
@@ -32,6 +31,7 @@ from exposureflow_api.notifications.schemas import (
     StatusIncidentCreate,
     StatusIncidentResponse,
     StatusIncidentUpdate,
+    SupportTicketResponse,
 )
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal-admin"])

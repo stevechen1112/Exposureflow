@@ -30,6 +30,10 @@ build/
 apps/web/.next/
 apps/web/out/
 apps/web/.turbo/
+apps/web/tsconfig.tsbuildinfo
+apps/web/e2e-artifacts/
+apps/web/test-results/
+apps/web/playwright-report/
 
 # Python / testing
 .pytest_cache/

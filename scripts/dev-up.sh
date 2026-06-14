@@ -5,4 +5,4 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/infra/docker"
 
 docker compose up -d
-echo "PostgreSQL: localhost:5432 | Redis: localhost:6379"
+echo "PostgreSQL: localhost:5433 | Redis: localhost:6379"

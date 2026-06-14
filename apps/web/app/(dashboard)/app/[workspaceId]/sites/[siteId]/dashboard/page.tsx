@@ -94,7 +94,7 @@ export default function DashboardPage() {
                 borderRadius: 999,
                 border: "1px solid var(--border)",
                 background: range === opt.days ? "var(--accent)" : "var(--surface-2)",
-                color: "var(--text)",
+                color: range === opt.days ? "#ffffff" : "var(--text)",
                 cursor: "pointer",
                 font: "inherit",
                 fontSize: "0.82rem",

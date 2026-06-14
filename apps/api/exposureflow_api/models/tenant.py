@@ -76,7 +76,10 @@ class User(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    memberships: Mapped[list["WorkspaceMembership"]] = relationship(back_populates="user")
+    memberships: Mapped[list["WorkspaceMembership"]] = relationship(
+        back_populates="user",
+        foreign_keys="WorkspaceMembership.user_id",
+    )
 
 
 class WorkspaceMembership(Base, TimestampMixin):

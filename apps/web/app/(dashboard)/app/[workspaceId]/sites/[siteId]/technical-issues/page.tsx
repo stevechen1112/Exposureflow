@@ -187,17 +187,21 @@ export default function TechnicalIssuesPage() {
                 background:
                   severityFilter === sev
                     ? sev === "critical"
-                      ? "#451a1a"
+                      ? "var(--danger-soft)"
                       : sev === "high"
-                        ? "#422006"
+                        ? "var(--warning-soft)"
                         : "var(--accent)"
                     : "var(--surface-2)",
                 color:
                   severityFilter === sev && sev === "critical"
-                    ? "#fca5a5"
+                    ? "var(--danger)"
                     : severityFilter === sev && sev === "high"
-                      ? "#fdba74"
-                      : "var(--text)",
+                      ? "var(--warning)"
+                      : severityFilter === sev
+                        ? sev === "all" || sev === "medium" || sev === "low"
+                          ? "#ffffff"
+                          : "var(--text)"
+                        : "var(--text)",
                 cursor: "pointer",
                 font: "inherit",
                 fontSize: "0.82rem",

@@ -1,7 +1,10 @@
 "use client";
 
-import { createClient } from "@exposureflow/sdk";
+import { createClient, type ExposureFlowClient } from "@exposureflow/sdk";
 import { API_BASE_URL, storageKey } from "./config";
+
+let cachedClientKey: string | null = null;
+let cachedClient: ExposureFlowClient | null = null;
 
 export function getApiClient(workspaceId?: string) {
   const token = typeof window !== "undefined" ? localStorage.getItem(storageKey("token")) : null;
@@ -9,11 +12,22 @@ export function getApiClient(workspaceId?: string) {
     workspaceId ??
     (typeof window !== "undefined" ? localStorage.getItem(storageKey("workspaceId")) : null) ??
     undefined;
-  return createClient({
+  const key = `${ws ?? ""}|${token ?? ""}`;
+  if (cachedClientKey === key && cachedClient) {
+    return cachedClient;
+  }
+  cachedClientKey = key;
+  cachedClient = createClient({
     baseUrl: API_BASE_URL,
     token: token ?? undefined,
     workspaceId: ws ?? undefined,
   });
+  return cachedClient;
+}
+
+export function resetApiClientCache() {
+  cachedClientKey = null;
+  cachedClient = null;
 }
 
 export async function ensureDevSession(email = "consultant@example.com", name = "Consultant") {
@@ -33,6 +47,8 @@ export async function ensureDevSession(email = "consultant@example.com", name = 
   const sites = await wsClient.listSites();
   if (sites[0]) {
     localStorage.setItem(storageKey("siteId"), sites[0].id);
+  } else {
+    localStorage.removeItem(storageKey("siteId"));
   }
   return { token: access_token, workspaceId: workspaces[0]?.id, siteId: sites[0]?.id };
 }

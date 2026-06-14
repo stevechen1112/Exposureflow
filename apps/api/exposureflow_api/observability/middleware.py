@@ -43,7 +43,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         client_ip = _client_ip(request)
         route = _route_template(request.url.path)
 
-        if not request.url.path.startswith("/health"):
+        if settings.app_env != "local" and not request.url.path.startswith("/health"):
             check_rate_limit(key=f"ip:{client_ip}", limit=300, window_seconds=60)
 
         start = time.perf_counter()
