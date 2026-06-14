@@ -16,6 +16,7 @@ from exposureflow_api.models.topic import (
     TopicCluster,
     TopicNode,
 )
+from exposureflow_api.models.serp import SerpSlotTarget
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
 from exposureflow_api.models.security import (
@@ -57,6 +58,7 @@ __all__ = [
     "TopicNode",
     "CannibalizationCase",
     "InternalLinkSuggestion",
+    "SerpSlotTarget",
     "UserSecurity",
     "WorkspaceInvitation",
     "ApiKey",

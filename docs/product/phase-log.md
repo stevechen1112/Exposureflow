@@ -28,8 +28,8 @@
 | 2 | 資料接入層 | completed | 8c0b4c7 | 2026-06-14 | EF-0201–0205 完整 review |
 | 3 | Exposure Core | completed | 40bd83a | 2026-06-14 | EF-0301–0303 + 補強 |
 | 4 | Topic Graph | completed | 830d45d | 2026-06-14 | EF-0401–0403 + 補強 |
-| 5 | SERP Matrix | in_progress | — | — | |
-| 6 | AI Visibility | pending | — | — | |
+| 5 | SERP Matrix | completed | _(本次 commit)_ | 2026-06-14 | EF-0501–0503 + 補強 |
+| 6 | AI Visibility | in_progress | — | — | |
 | 7 | Decision Plane | pending | — | — | |
 | 8 | Execution Plane | pending | — | — | |
 | 9 | Dashboard / UX | pending | — | — | |
@@ -187,3 +187,26 @@
 **下一 Phase 前置：**
 
 - 開始 Phase 5：SERP Slot Matrix、Featured Snippet / PAA Opportunity
+
+---
+
+### Phase 5 — SERP Slot Matrix
+
+**狀態**：completed  
+**完成日期**：2026-06-14
+
+**交付物：**
+
+- `SerpSlotTarget` 模型與 migration `006_serp_matrix.py`
+- `serp/`（matrix、opportunities、owner、service、router）
+- SERP opportunity 規則 OG-002、OG-007、OG-008、OG-009
+- `docs/product/phase-5-review.md`
+
+**驗收證據：**
+
+- EF-0501–0503、EF-0504–0505 PASS
+- 單元測試 6 passed；Security Review PASS
+
+**下一 Phase 前置：**
+
+- 開始 Phase 6：AI Probe Framework、AI Visibility

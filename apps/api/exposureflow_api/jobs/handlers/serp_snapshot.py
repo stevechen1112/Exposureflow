@@ -7,8 +7,11 @@ from connectors.serp.slot_extractor import build_fetch_result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.config import settings
+from exposureflow_api.exposure.owner_classification import load_competitor_domains
 from exposureflow_api.integrations.sync_helpers import finalize_job_run, get_site
 from exposureflow_api.models import JobRun, SerpQuerySnapshot, SerpSlot
+from exposureflow_api.serp.owner import apply_owner_classification
+from exposureflow_api.serp.service import sync_slot_targets_for_snapshot
 
 
 async def run_serp_snapshot(db: AsyncSession, run: JobRun) -> None:
@@ -79,24 +82,30 @@ async def run_serp_snapshot(db: AsyncSession, run: JobRun) -> None:
         db.add(snapshot)
         await db.flush()
 
+        competitors = await load_competitor_domains(db, run.workspace_id, site_id)
         for slot in result.slots:
-            db.add(
-                SerpSlot(
-                    workspace_id=run.workspace_id,
-                    snapshot_id=snapshot.id,
-                    slot_type=slot.slot_type,
-                    position=slot.position,
-                    owner_domain=slot.owner_domain,
-                    owner_brand=slot.owner_brand,
-                    url=slot.url,
-                    title=slot.title,
-                    snippet=slot.snippet,
-                    is_own_site=slot.is_own_site,
-                    is_competitor=slot.is_competitor,
-                    is_third_party=slot.is_third_party,
-                )
+            serp_slot = SerpSlot(
+                workspace_id=run.workspace_id,
+                snapshot_id=snapshot.id,
+                slot_type=slot.slot_type,
+                position=slot.position,
+                owner_domain=slot.owner_domain,
+                owner_brand=slot.owner_brand,
+                url=slot.url,
+                title=slot.title,
+                snippet=slot.snippet,
+                is_own_site=slot.is_own_site,
+                is_competitor=slot.is_competitor,
+                is_third_party=slot.is_third_party,
             )
+            apply_owner_classification(
+                serp_slot,
+                site_domain=site.domain,
+                competitor_domains=competitors,
+            )
+            db.add(serp_slot)
         await db.flush()
+        await sync_slot_targets_for_snapshot(db, run.workspace_id, site_id, snapshot.id)
 
         provider_cost = 1 if result.raw_provider == "serper" else 2
         await finalize_job_run(
