@@ -49,11 +49,18 @@ async def engine():
     if not POSTGRES_READY:
         pytest.skip("PostgreSQL is required for API integration tests.")
 
+    from exposureflow_api.billing.service import seed_plans
+    from exposureflow_api.tenants import service as tenant_service
+
     engine = create_async_engine(TEST_DATABASE_URL)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     async_session_factory.configure(bind=engine)
+    async with async_session_factory() as session:
+        await tenant_service.seed_job_definitions(session)
+        await seed_plans(session)
+        await session.commit()
     yield engine
     await engine.dispose()
 

@@ -83,6 +83,10 @@ async def bootstrap_dev_user_workspace(
     )
     db.add(membership)
     await db.flush()
+
+    from exposureflow_api.billing.service import ensure_starter_subscription
+
+    await ensure_starter_subscription(db, account.id)
     return user, workspace
 
 
@@ -100,6 +104,10 @@ async def create_workspace_for_user(
 
     account_id = memberships[0][0].account_id
     organization_id = memberships[0][0].organization_id
+
+    from exposureflow_api.billing.quota import check_workspace_limit
+
+    await check_workspace_limit(db, account_id)
 
     workspace = Workspace(
         account_id=account_id,
@@ -137,6 +145,10 @@ async def create_site(
     industry: str | None,
     business_model: str | None,
 ) -> Site:
+    from exposureflow_api.billing.quota import check_site_limit
+
+    await check_site_limit(db, workspace_id)
+
     site = Site(
         workspace_id=workspace_id,
         domain=domain,
@@ -200,6 +212,10 @@ async def create_invitation(
     role: str,
     invited_by: UUID,
 ) -> tuple[WorkspaceInvitation, str]:
+    from exposureflow_api.billing.quota import check_member_limit
+
+    await check_member_limit(db, workspace_id)
+
     token = secrets.token_urlsafe(32)
     invitation = WorkspaceInvitation(
         workspace_id=workspace_id,

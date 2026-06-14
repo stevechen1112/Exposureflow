@@ -33,6 +33,8 @@ function workspaceNav(workspaceId: string): NavItem[] {
     { href: `/app/${workspaceId}/settings`, label: "設定" },
     { href: `/app/${workspaceId}/settings/integrations`, label: "整合" },
     { href: `/app/${workspaceId}/settings/members`, label: "成員" },
+    { href: `/app/${workspaceId}/settings/billing`, label: "計費" },
+    { href: `/app/${workspaceId}/agency`, label: "Agency 總覽" },
   ];
 }
 

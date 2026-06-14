@@ -39,6 +39,7 @@ PERMISSIONS: dict[str, set[str]] = {
         "job:write",
         "api_key:write",
         "billing:read",
+        "agency:read",
         "impersonate",
         "client:approve",
     },
@@ -56,6 +57,7 @@ PERMISSIONS: dict[str, set[str]] = {
         "job:write",
         "api_key:write",
         "billing:read",
+        "agency:read",
         "client:approve",
     },
     "client_viewer": {

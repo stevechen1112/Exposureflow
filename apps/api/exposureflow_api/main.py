@@ -22,12 +22,16 @@ from exposureflow_api.topics.router import router as topics_router
 from exposureflow_api.tenants.router import router as tenants_router
 from exposureflow_api.reporting.router import router as reporting_router
 from exposureflow_api.reporting.client_router import router as client_portal_router
+from exposureflow_api.billing.router import router as billing_router, webhook_router as stripe_webhook_router
+from exposureflow_api.billing.service import seed_plans
+from exposureflow_api.agency.router import router as agency_router
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     async with async_session_factory() as session:
         await tenant_service.seed_job_definitions(session)
+        await seed_plans(session)
         await session.commit()
     yield
 
@@ -62,6 +66,9 @@ app.include_router(execution_router)
 app.include_router(content_router)
 app.include_router(reporting_router)
 app.include_router(client_portal_router)
+app.include_router(billing_router)
+app.include_router(stripe_webhook_router)
+app.include_router(agency_router)
 
 
 @app.get("/health")

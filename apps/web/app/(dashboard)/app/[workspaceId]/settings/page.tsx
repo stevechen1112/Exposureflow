@@ -17,6 +17,9 @@ export default function SettingsPage() {
         <li>
           <Link href={`${base}/members`}>成員與 RBAC</Link>
         </li>
+        <li>
+          <Link href={`${base}/billing`}>計費與方案</Link>
+        </li>
       </ul>
     </>
   );

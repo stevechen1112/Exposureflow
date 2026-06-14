@@ -242,6 +242,40 @@ export class ExposureFlowClient {
       body: JSON.stringify({ email, name }),
     });
   }
+
+  listPlans(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/billing/plans`);
+  }
+
+  getSubscription(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/billing/subscription`);
+  }
+
+  getBillingUsage(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/billing/usage`);
+  }
+
+  startCheckout(planCode: string, billingInterval = "month"): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/billing/checkout`, {
+      method: "POST",
+      body: JSON.stringify({ plan_code: planCode, billing_interval: billingInterval }),
+    });
+  }
+
+  openBillingPortal(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/billing/portal`, { method: "POST" });
+  }
+
+  getAgencyDashboard(): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/agency/dashboard`);
+  }
+
+  updateWorkspaceBranding(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/billing/branding`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
 }
 
 export function createClient(options: ExposureFlowClientOptions) {

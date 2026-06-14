@@ -8,7 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from exposureflow_api.database import async_session_factory
 from exposureflow_api.jobs.celery_app import celery_app
 from exposureflow_api.jobs.handlers import dispatch_job_run
+from exposureflow_api.billing import quota as billing_quota
+from exposureflow_api.execution.capacity import record_usage_event
 from exposureflow_api.models import JobDefinition, JobRun
+
+JOB_TYPE_QUOTA_METRIC: dict[str, str] = {
+    "gsc.sync": "gsc_rows",
+    "serp.snapshot": "serp_snapshots",
+    "content.generate.grounded_draft": "content_generation_runs",
+    "content.publish_gate.check": "claim_verification_runs",
+    "knowledge.source.ingest": "knowledge_sources",
+    "knowledge.fact.embed": "knowledge_embedding",
+    "report.monthly.generate": "report_exports",
+}
 
 
 async def _get_job_definition(db: AsyncSession, job_type: str) -> JobDefinition | None:
@@ -25,6 +37,10 @@ async def enqueue_job(
     input_json: dict | None = None,
     idempotency_key: str | None = None,
 ) -> JobRun:
+    metric = JOB_TYPE_QUOTA_METRIC.get(job_type)
+    if metric:
+        await billing_quota.check_quota(db, workspace_id, metric)
+
     definition = await _get_job_definition(db, job_type)
     run = JobRun(
         workspace_id=workspace_id,
@@ -37,6 +53,15 @@ async def enqueue_job(
     )
     db.add(run)
     await db.flush()
+
+    if metric:
+        await record_usage_event(
+            db,
+            workspace_id=workspace_id,
+            metric=metric,
+            site_id=site_id,
+            idempotency_key=idempotency_key or f"job-run-{run.id}",
+        )
 
     celery_app.send_task(
         "exposureflow_api.jobs.tasks.execute_job_run",
