@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -9,6 +9,15 @@ from exposureflow_api.models.base import Base, TimestampMixin, new_uuid
 
 class SerpSlotTarget(Base, TimestampMixin):
     __tablename__ = "serp_slot_targets"
+    __table_args__ = (
+        UniqueConstraint(
+            "workspace_id",
+            "site_id",
+            "keyword",
+            "slot_type",
+            name="uq_serp_slot_target_keyword_slot",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
     workspace_id: Mapped[uuid.UUID] = mapped_column(

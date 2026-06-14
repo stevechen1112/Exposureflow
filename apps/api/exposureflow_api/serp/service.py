@@ -33,6 +33,14 @@ from exposureflow_api.serp.opportunities import (
 )
 
 
+MANUAL_SLOT_TARGET_STATUSES = frozenset({"blocked", "not_applicable"})
+
+
+def should_sync_target_status(current_status: str) -> bool:
+    """Preserve user-set statuses across snapshot syncs."""
+    return current_status not in MANUAL_SLOT_TARGET_STATUSES
+
+
 def _slot_dict(slot: SerpSlot) -> dict:
     return {
         "slot_type": slot.slot_type,
@@ -53,7 +61,11 @@ async def sync_slot_targets_for_snapshot(
     snapshot_id: UUID,
 ) -> int:
     snapshot = await db.get(SerpQuerySnapshot, snapshot_id)
-    if snapshot is None or snapshot.workspace_id != workspace_id:
+    if (
+        snapshot is None
+        or snapshot.workspace_id != workspace_id
+        or snapshot.site_id != site_id
+    ):
         return 0
 
     slots_result = await db.execute(select(SerpSlot).where(SerpSlot.snapshot_id == snapshot_id))
@@ -100,7 +112,8 @@ async def sync_slot_targets_for_snapshot(
         target.topic_cluster_id = cluster_id
         target.current_owner = cell.matrix_status
         target.current_owner_url = cell.owner_url
-        target.target_status = target_status_from_matrix(cell.matrix_status)
+        if should_sync_target_status(target.target_status):
+            target.target_status = target_status_from_matrix(cell.matrix_status)
         target.recommended_action = recommended_action_for(cell.matrix_status, cell.slot_type)
         target.evidence_json = {
             "snapshot_id": cell.snapshot_id,
@@ -131,6 +144,7 @@ async def build_site_matrix(
         nodes = await db.execute(
             select(TopicNode.keyword).where(
                 TopicNode.workspace_id == workspace_id,
+                TopicNode.site_id == site_id,
                 TopicNode.topic_cluster_id == cluster_id,
             )
         )
@@ -261,11 +275,28 @@ async def generate_serp_opportunities(db: AsyncSession, workspace_id: UUID, site
             )
         ).scalars().all()
     )
-    has_image = any(a.asset_type == "image" for a in asset_rows)
-    has_video = any(a.asset_type == "video" for a in asset_rows)
-    has_product_schema = any(
-        (a.metadata_json or {}).get("has_product_schema") for a in asset_rows
-    )
+    assets_by_url: dict[str, list[ExposureAsset]] = defaultdict(list)
+    for asset in asset_rows:
+        assets_by_url[asset.url].append(asset)
+
+    def _page_has_image(url: str | None) -> bool:
+        if not url:
+            return False
+        return any(a.asset_type == "image" for a in assets_by_url.get(url, []))
+
+    def _page_has_video(url: str | None) -> bool:
+        if not url:
+            return False
+        return any(a.asset_type == "video" for a in assets_by_url.get(url, []))
+
+    def _page_has_product_schema(url: str | None) -> bool:
+        if not url:
+            return False
+        return any(
+            (a.metadata_json or {}).get("has_product_schema")
+            for a in assets_by_url.get(url, [])
+            if a.asset_type == "page"
+        )
 
     snapshots = await db.execute(
         select(SerpQuerySnapshot)
@@ -335,12 +366,12 @@ async def generate_serp_opportunities(db: AsyncSession, workspace_id: UUID, site
                 impressions=impressions,
                 image_slot=slot_map.get("image"),
                 video_slot=slot_map.get("video"),
-                has_image_asset=has_image,
-                has_video_asset=has_video,
+                has_image_asset=_page_has_image(current_url),
+                has_video_asset=_page_has_video(current_url),
             )
         )
         product_slot = slot_map.get("product")
-        if product_slot and not has_product_schema and _track("OG-009", keyword, current_url, "add_schema"):
+        if product_slot and not _page_has_product_schema(current_url) and _track("OG-009", keyword, current_url, "add_schema"):
             score = score_opportunity(
                 ScoreInput(
                     query_impressions_28d=max(impressions, 1),
