@@ -22,6 +22,7 @@ from exposureflow_api.models import (
     TopicNode,
 )
 from exposureflow_api.serp.matrix import (
+    MATRIX_SLOT_TYPES,
     build_matrix_from_slots,
     recommended_action_for,
     target_status_from_matrix,
@@ -132,7 +133,7 @@ async def build_site_matrix(
     *,
     cluster_id: UUID | None = None,
 ) -> dict:
-    keywords: list[str] | None = None
+    keywords_filter: list[str] | None = None
     if cluster_id:
         cluster = await db.get(TopicCluster, cluster_id)
         if (
@@ -148,7 +149,7 @@ async def build_site_matrix(
                 TopicNode.topic_cluster_id == cluster_id,
             )
         )
-        keywords = [k for (k,) in nodes.all()]
+        keywords_filter = [k for (k,) in nodes.all()]
 
     stmt = (
         select(SerpQuerySnapshot)
@@ -158,16 +159,19 @@ async def build_site_matrix(
         )
         .order_by(SerpQuerySnapshot.captured_at.desc())
     )
-    if keywords:
-        stmt = stmt.where(SerpQuerySnapshot.keyword.in_(keywords))
+    if keywords_filter:
+        stmt = stmt.where(SerpQuerySnapshot.keyword.in_(keywords_filter))
     snapshots = list((await db.execute(stmt)).scalars().all())
 
+    keyword_list: list[str] = []
+    flat_cells: list[dict] = []
     seen_keywords: set[str] = set()
-    matrix_rows: list[dict] = []
+
     for snapshot in snapshots:
         if snapshot.keyword in seen_keywords:
             continue
         seen_keywords.add(snapshot.keyword)
+        keyword_list.append(snapshot.keyword)
         slots_result = await db.execute(
             select(SerpSlot).where(SerpSlot.snapshot_id == snapshot.id)
         )
@@ -177,28 +181,23 @@ async def build_site_matrix(
             snapshot_id=str(snapshot.id),
             slots=slots,
         )
-        matrix_rows.append(
-            {
-                "keyword": snapshot.keyword,
-                "snapshot_id": str(snapshot.id),
-                "captured_at": snapshot.captured_at.isoformat(),
-                "cells": [
-                    {
-                        "slot_type": c.slot_type,
-                        "matrix_status": c.matrix_status,
-                        "owner_url": c.owner_url,
-                        "owner_domain": c.owner_domain,
-                        "title": c.title,
-                    }
-                    for c in cells
-                ],
-            }
-        )
+        for cell in cells:
+            ui_status = "owned" if cell.matrix_status == "owned" else (
+                "available" if cell.matrix_status == "available" else "blocked"
+            )
+            flat_cells.append(
+                {
+                    "keyword": cell.keyword,
+                    "slot_type": cell.slot_type,
+                    "status": ui_status,
+                    "owner": cell.owner_domain or cell.owner_url,
+                }
+            )
 
     return {
-        "site_id": str(site_id),
-        "cluster_id": str(cluster_id) if cluster_id else None,
-        "keywords": matrix_rows,
+        "keywords": keyword_list,
+        "slot_types": list(MATRIX_SLOT_TYPES),
+        "cells": flat_cells,
     }
 
 

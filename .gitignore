@@ -54,3 +54,6 @@ infra/docker/.data/
 *.pem
 *.key
 secrets/
+# GCP service account keys (GSC integration — never commit)
+exposureflow-gsc-*.json
+*-gserviceaccount*.json

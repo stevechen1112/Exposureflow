@@ -37,6 +37,9 @@ export function parseApiError(message: string): { friendly: string; isForbidden:
   if (message.includes("404") || message.includes("NOT_FOUND")) {
     return { isForbidden: false, friendly: "找不到要求的資源，可能尚未建立或已被移除。" };
   }
+  if (message.includes("SITE_LIMIT")) {
+    return { isForbidden: false, friendly: "已達目前方案的站點數量上限。請編輯現有站點或聯絡營運調整配額。" };
+  }
   if (message.includes("422")) {
     return { isForbidden: false, friendly: "請求參數不完整，請確認站點與工作區設定是否完成。" };
   }

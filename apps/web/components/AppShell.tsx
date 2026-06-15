@@ -82,7 +82,7 @@ export function AppShell({
             </>
           ) : !loading && role && canRole(role, "site:read") ? (
             <p style={{ fontSize: "0.82rem", color: "var(--muted)", padding: "0 0.75rem" }}>
-              <Link href={`/app/${workspaceId}/onboarding`}>完成 Onboarding</Link> 以建立站點並開始分析。
+              <Link href={`/app/${workspaceId}/settings/sites`}>建立站點</Link> 以開始分析。
             </p>
           ) : !loading && role ? (
             <p style={{ fontSize: "0.82rem", color: "var(--muted)", padding: "0 0.75rem" }}>

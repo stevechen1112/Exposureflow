@@ -8,7 +8,13 @@ function isStepUpRequired(message: string) {
   return message.includes("2FA_STEP_UP_REQUIRED") || message.includes("2FA step-up");
 }
 
-export function TwoFactorStepUpGate({ children }: { children: React.ReactNode }) {
+export function TwoFactorStepUpGate({
+  workspaceId,
+  children,
+}: {
+  workspaceId?: string;
+  children: React.ReactNode;
+}) {
   const [needsStepUp, setNeedsStepUp] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,15 +23,16 @@ export function TwoFactorStepUpGate({ children }: { children: React.ReactNode })
 
   const probe = useCallback(async () => {
     const token = localStorage.getItem(storageKey("token"));
-    const workspaceId = localStorage.getItem(storageKey("workspaceId"));
-    if (!token || !workspaceId) {
+    const ws =
+      workspaceId ?? localStorage.getItem(storageKey("workspaceId")) ?? undefined;
+    if (!token || !ws) {
       setChecked(true);
       return;
     }
     const client = createClient({
       baseUrl: API_BASE_URL,
       token,
-      workspaceId,
+      workspaceId: ws,
     });
     try {
       // Must hit a workspace-scoped endpoint that runs require_workspace_access (2FA amr check).
@@ -39,7 +46,7 @@ export function TwoFactorStepUpGate({ children }: { children: React.ReactNode })
     } finally {
       setChecked(true);
     }
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
     probe();

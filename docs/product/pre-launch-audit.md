@@ -1,5 +1,8 @@
 # ExposureFlow 上線前 Audit（Pre-Launch）
 
+> **GTM Scope 覆蓋**：Product 已確認 **顧問優先、無自助註冊／計費、現階段 Consultant-Only**。  
+> 部署與上線 **必做／不做** 清單以 **`gtm-deployment-scope.md`** 為準；本 audit 為通用全自助 SaaS 參考，勿默認全部 BLOCKER 皆為現階段必做。
+
 **Audit 日期**：2026-06-14  
 **範圍**：Phase 0–14 工程交付 vs 正式對外 SaaS 上線就緒  
 **結論**：**Phase 工程結案 ≠ Production GA Ready**。模組齊全度約 **85%**；上線前必須處理 **3 項 BLOCKER** 與若干 HIGH。

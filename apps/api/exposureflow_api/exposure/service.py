@@ -18,6 +18,8 @@ from exposureflow_api.models import (
     GscPerformanceRow,
     TechnicalIssue,
 )
+from exposureflow_api.models.strategy import KeywordPyramidNode
+from exposureflow_api.strategy.business_fit import evaluate_site_keyword_fit
 
 
 async def import_assets_from_gsc(
@@ -177,6 +179,9 @@ async def generate_opportunities_from_gsc(
         query_imp = query_impressions[query]
         pos = float(position or 0)
         if query_imp >= p75 and 11 <= pos <= 30:
+            fit = await evaluate_site_keyword_fit(db, workspace_id, site_id, query)
+            if fit.blocked:
+                continue
             if not _track("OG-001", query, page):
                 continue
             score = score_opportunity(
@@ -185,6 +190,7 @@ async def generate_opportunities_from_gsc(
                     site_p95_query_impressions=p95,
                     current_position=pos,
                     targetable_slot_count=1,
+                    business_fit_score=fit.business_fit_score,
                 )
             )
             db.add(
@@ -210,6 +216,9 @@ async def generate_opportunities_from_gsc(
     for query, pages in by_query.items():
         unique_pages = {p[0] for p in pages}
         if len(unique_pages) >= 2:
+            fit = await evaluate_site_keyword_fit(db, workspace_id, site_id, query)
+            if fit.blocked:
+                continue
             if not _track("OG-004", query, None):
                 continue
             top = max(pages, key=lambda x: int(x[1] or 0))
@@ -220,6 +229,7 @@ async def generate_opportunities_from_gsc(
                     current_position=float(top[2] or 0),
                     targetable_slot_count=1,
                     execution_confidence=0.7,
+                    business_fit_score=fit.business_fit_score,
                 )
             )
             db.add(
@@ -281,6 +291,67 @@ async def generate_opportunities_from_gsc(
         db.add(opp)
         created += 1
 
+    await db.flush()
+    return created
+
+
+async def generate_opportunities_from_pyramid(
+    db: AsyncSession, workspace_id: UUID, site_id: UUID
+) -> int:
+    """OG-016: Approved high-priority pyramid nodes without GSC coverage."""
+    result = await db.execute(
+        select(KeywordPyramidNode).where(
+            KeywordPyramidNode.workspace_id == workspace_id,
+            KeywordPyramidNode.site_id == site_id,
+            KeywordPyramidNode.business_fit_status == "in_scope",
+            KeywordPyramidNode.approved_at.is_not(None),
+            KeywordPyramidNode.priority >= 4,
+        )
+    )
+    nodes = list(result.scalars().all())
+    if not nodes:
+        return 0
+
+    seen = await _existing_opportunity_keys(db, workspace_id, site_id)
+    created = 0
+    for node in nodes:
+        enrichment = (node.evidence_json or {}).get("enrichment") or {}
+        slot_count = int(enrichment.get("targetable_slot_count") or 1)
+        rule_id = "OG-016"
+        key = (rule_id, node.keyword, None)
+        if key in seen:
+            continue
+        seen.add(key)
+        score = score_opportunity(
+            ScoreInput(
+                query_impressions_28d=0,
+                site_p95_query_impressions=1,
+                current_position=None,
+                targetable_slot_count=slot_count,
+                business_priority=node.priority,
+                business_fit_score=1.0,
+                execution_confidence=0.6,
+            )
+        )
+        db.add(
+            _build_opportunity(
+                workspace_id,
+                site_id,
+                opportunity_type="create_page",
+                keyword=node.keyword,
+                current_url=None,
+                impressions=0,
+                position=None,
+                reason="OG-016: Approved pyramid topic without GSC coverage",
+                rule_id=rule_id,
+                score=score,
+                extra_evidence={
+                    "pyramid_node_id": str(node.id),
+                    "node_type": node.node_type,
+                },
+            )
+        )
+        created += 1
     await db.flush()
     return created
 

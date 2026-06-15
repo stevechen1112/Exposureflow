@@ -43,10 +43,10 @@ async def list_user_workspaces(db: AsyncSession, user_id: UUID) -> list[tuple[Wo
 
 
 async def _ensure_dev_demo_site(db: AsyncSession, workspace_id: UUID) -> None:
-    """Local dev: ensure at least one site so dashboard routes are usable."""
+    """Local dev only: ensure at least one site so dashboard routes are usable."""
     from exposureflow_api.config import settings
 
-    if settings.app_env == "production":
+    if settings.app_env != "local":
         return
 
     existing = await db.execute(select(Site.id).where(Site.workspace_id == workspace_id).limit(1))
@@ -233,6 +233,22 @@ async def create_workspace_for_user(
     return workspace
 
 
+def normalize_site_domain(domain: str) -> str:
+    value = domain.strip().lower()
+    for prefix in ("https://", "http://"):
+        if value.startswith(prefix):
+            value = value[len(prefix) :]
+    value = value.split("/")[0].split("?")[0].rstrip(".")
+    return value
+
+
+async def get_site_in_workspace(db: AsyncSession, workspace_id: UUID, site_id: UUID) -> Site | None:
+    result = await db.execute(
+        select(Site).where(Site.id == site_id, Site.workspace_id == workspace_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_site(
     db: AsyncSession,
     workspace_id: UUID,
@@ -248,10 +264,11 @@ async def create_site(
 
     await check_site_limit(db, workspace_id)
 
+    normalized = normalize_site_domain(domain)
     site = Site(
         workspace_id=workspace_id,
-        domain=domain,
-        site_name=site_name,
+        domain=normalized,
+        site_name=site_name.strip(),
         primary_locale=primary_locale,
         target_countries=target_countries,
         target_languages=target_languages,
@@ -259,6 +276,42 @@ async def create_site(
         business_model=business_model,
     )
     db.add(site)
+    await db.flush()
+    return site
+
+
+async def update_site(
+    db: AsyncSession,
+    workspace_id: UUID,
+    site_id: UUID,
+    *,
+    domain: str | None = None,
+    site_name: str | None = None,
+    primary_locale: str | None = None,
+    target_countries: list[str] | None = None,
+    target_languages: list[str] | None = None,
+    industry: str | None = None,
+    business_model: str | None = None,
+) -> Site:
+    site = await get_site_in_workspace(db, workspace_id, site_id)
+    if site is None:
+        raise ValueError("Site not found")
+
+    if domain is not None:
+        site.domain = normalize_site_domain(domain)
+    if site_name is not None:
+        site.site_name = site_name.strip()
+    if primary_locale is not None:
+        site.primary_locale = primary_locale
+    if target_countries is not None:
+        site.target_countries = target_countries
+    if target_languages is not None:
+        site.target_languages = target_languages
+    if industry is not None:
+        site.industry = industry.strip() or None
+    if business_model is not None:
+        site.business_model = business_model.strip() or None
+
     await db.flush()
     return site
 

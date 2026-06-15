@@ -30,6 +30,7 @@ from exposureflow_api.tenants.schemas import (
     MemberRoleUpdate,
     SiteCreate,
     SiteResponse,
+    SiteUpdate,
     UserResponse,
     WorkspaceCreate,
     WorkspaceResponse,
@@ -166,6 +167,57 @@ async def create_site(
     await record_audit(
         db,
         action="site.created",
+        target_type="site",
+        target_id=str(site.id),
+        workspace_id=workspace_id,
+        actor_user_id=user.user_id,
+    )
+    await db.commit()
+    await db.refresh(site)
+    return site
+
+
+@router.get("/sites/{site_id}", response_model=SiteResponse)
+async def get_site(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+) -> Site:
+    _user, _membership, workspace_id = ctx
+    site = await service.get_site_in_workspace(db, workspace_id, site_id)
+    if site is None:
+        raise not_found("Site")
+    return site
+
+
+@router.patch("/sites/{site_id}", response_model=SiteResponse)
+async def patch_site(
+    site_id: UUID,
+    body: SiteUpdate,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+) -> Site:
+    user, _membership, workspace_id = ctx
+    if not body.model_fields_set:
+        raise APIError(code="VALIDATION_ERROR", message="No fields to update", status_code=400)
+    try:
+        site = await service.update_site(
+            db,
+            workspace_id,
+            site_id,
+            domain=body.domain,
+            site_name=body.site_name,
+            primary_locale=body.primary_locale,
+            target_countries=body.target_countries,
+            target_languages=body.target_languages,
+            industry=body.industry,
+            business_model=body.business_model,
+        )
+    except ValueError as exc:
+        raise not_found("Site") from exc
+    await record_audit(
+        db,
+        action="site.updated",
         target_type="site",
         target_id=str(site.id),
         workspace_id=workspace_id,

@@ -13,10 +13,16 @@ export default function SettingsPage() {
 
   const links = [
     {
+      href: `${base}/sites`,
+      label: "站點管理",
+      permission: "site:read",
+      desc: "新增與編輯客戶網站（domain、名稱、市場設定）",
+    },
+    {
       href: `${base}/integrations`,
-      label: "整合（GSC、GA4、SERP…）",
+      label: "GSC 連線",
       permission: "integration:read",
-      desc: "資料源連線與同步狀態",
+      desc: "Google Search Console 授權、credential 與資料同步",
     },
     {
       href: `${base}/members`,

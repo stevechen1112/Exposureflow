@@ -1,5 +1,8 @@
 # ExposureFlow 正式上線檢查表（EF-1401 / EF-H010）
 
+> **GTM Scope**：現階段僅 **顧問後台**（Consultant-Only），無自助註冊／Stripe／Client Portal。  
+> 見 **`gtm-deployment-scope.md`**。「自助客戶旅程」現階段 **不適用**；「顧問客戶旅程」適用。
+
 本檢查表用於 Phase 14 正式對外營運前驗收。自動化檢查可透過 `GET /api/v1/launch/readiness` 或 Internal Admin 取得。
 
 ## 產品核心

@@ -5,13 +5,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { useSiteContext } from "@/lib/hooks";
 
 export default function DeliveryCommitmentsPage() {
-  const { client } = useSiteContext();
+  const { siteId, client } = useSiteContext();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    client.listDeliveryCommitments().then(setRows).catch((err: Error) => setError(err.message));
-  }, [client]);
+    client.listDeliveryCommitments(siteId).then(setRows).catch((err: Error) => setError(err.message));
+  }, [client, siteId]);
 
   return (
     <>

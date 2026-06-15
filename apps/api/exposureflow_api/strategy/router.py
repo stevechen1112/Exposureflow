@@ -12,22 +12,57 @@ from exposureflow_api.strategy import service
 from exposureflow_api.strategy.schemas import (
     BusinessFitEvaluateRequest,
     BusinessFitEvaluateResponse,
+    BusinessConstraintRuleResponse,
     BusinessIntakeCreate,
+    BusinessIntakeApproveResponse,
     BusinessIntakeResponse,
     BusinessIntakeUpdate,
     ColdStartResearchRequest,
     DeliveryCommitmentCreate,
     DeliveryCommitmentResponse,
     DeliveryCommitmentUpdate,
+    KeywordPyramidBulkImportRequest,
+    KeywordPyramidBulkImportResponse,
     KeywordPyramidNodeCreate,
     KeywordPyramidNodeResponse,
     KeywordPyramidNodeUpdate,
+    PyramidTopicBridgeResponse,
     ProductServiceScopeCreate,
     ProductServiceScopeResponse,
     ProductServiceScopeUpdate,
+    StrategyImpactApplyResponse,
+    StrategyImpactPreviewResponse,
 )
 
 router = APIRouter(prefix="/api/v1/strategy", tags=["strategy"])
+
+
+@router.post("/intakes/current/reapply", response_model=BusinessIntakeApproveResponse)
+async def reapply_current_intake(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    row, impact = await service.reapply_current_intake(db, workspace_id, site_id, user.user_id)
+    await db.commit()
+    await db.refresh(row)
+    return BusinessIntakeApproveResponse(
+        intake=BusinessIntakeResponse.model_validate(row),
+        impact=StrategyImpactApplyResponse(**impact),
+    )
+
+
+@router.get("/intakes/current", response_model=BusinessIntakeResponse | None)
+async def get_current_intake(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    return await service.get_current_intake(db, workspace_id, site_id)
 
 
 @router.get("/intakes", response_model=list[BusinessIntakeResponse])
@@ -81,17 +116,45 @@ async def update_intake(
     return row
 
 
-@router.post("/intakes/{intake_id}/approve", response_model=BusinessIntakeResponse)
+@router.post("/intakes/{intake_id}/fork", response_model=BusinessIntakeResponse)
+async def fork_intake(
+    intake_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    parent = await service.get_intake(db, workspace_id, intake_id)
+    row = await service.fork_intake(db, workspace_id, parent.site_id, parent)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+@router.get("/intakes/{intake_id}/impact-preview", response_model=StrategyImpactPreviewResponse)
+async def preview_intake_impact(
+    intake_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    preview = await service.preview_intake(db, workspace_id, intake_id)
+    return StrategyImpactPreviewResponse(**preview)
+
+
+@router.post("/intakes/{intake_id}/approve", response_model=BusinessIntakeApproveResponse)
 async def approve_intake(
     intake_id: UUID,
     ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
     db: AsyncSession = Depends(get_db),
 ):
     user, _membership, workspace_id = ctx
-    row = await service.approve_intake(db, workspace_id, intake_id, user.id)
+    row, impact = await service.approve_intake(db, workspace_id, intake_id, user.user_id)
     await db.commit()
     await db.refresh(row)
-    return row
+    return BusinessIntakeApproveResponse(
+        intake=BusinessIntakeResponse.model_validate(row),
+        impact=StrategyImpactApplyResponse(**impact),
+    )
 
 
 @router.get("/product-scopes", response_model=list[ProductServiceScopeResponse])
@@ -136,6 +199,20 @@ async def update_product_scope(
     return row
 
 
+@router.get("/constraint-rules", response_model=list[BusinessConstraintRuleResponse])
+async def list_constraint_rules(
+    site_id: UUID,
+    active_only: bool = True,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    return await service.list_constraint_rules(
+        db, workspace_id, site_id, active_only=active_only
+    )
+
+
 @router.get("/keyword-pyramid", response_model=list[KeywordPyramidNodeResponse])
 async def list_keyword_pyramid(
     site_id: UUID,
@@ -150,6 +227,42 @@ async def list_keyword_pyramid(
     return await service.list_keyword_pyramid(
         db, workspace_id, site_id, status=status, market=market, language=language
     )
+
+
+@router.post("/keyword-pyramid/bulk-import", response_model=KeywordPyramidBulkImportResponse)
+async def bulk_import_keyword_pyramid(
+    body: KeywordPyramidBulkImportRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, body.site_id)
+    result = await service.bulk_import_keyword_nodes(
+        db,
+        workspace_id,
+        body.site_id,
+        [row.model_dump() for row in body.rows],
+        created_by=body.created_by,
+    )
+    await db.commit()
+    return KeywordPyramidBulkImportResponse(
+        created=int(result["created"]),
+        skipped=int(result["skipped"]),
+        errors=list(result["errors"]),
+    )
+
+
+@router.post("/keyword-pyramid/sync-topic-bridge", response_model=PyramidTopicBridgeResponse)
+async def sync_keyword_pyramid_topic_bridge(
+    site_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, site_id)
+    stats = await service.sync_pyramid_topic_bridge(db, workspace_id, site_id)
+    await db.commit()
+    return PyramidTopicBridgeResponse(linked=stats["linked"], skipped=stats["skipped"])
 
 
 @router.post("/keyword-pyramid", response_model=KeywordPyramidNodeResponse)
@@ -182,6 +295,17 @@ async def update_keyword_node(
     return row
 
 
+@router.delete("/keyword-pyramid/{node_id}", status_code=204)
+async def delete_keyword_node(
+    node_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    user, _membership, workspace_id = ctx
+    await service.delete_keyword_node(db, workspace_id, node_id, user.user_id)
+    await db.commit()
+
+
 @router.post("/keyword-pyramid/{node_id}/approve", response_model=KeywordPyramidNodeResponse)
 async def approve_keyword_node(
     node_id: UUID,
@@ -189,7 +313,7 @@ async def approve_keyword_node(
     db: AsyncSession = Depends(get_db),
 ):
     user, _membership, workspace_id = ctx
-    row = await service.approve_keyword_node(db, workspace_id, node_id, user.id)
+    row = await service.approve_keyword_node(db, workspace_id, node_id, user.user_id)
     await db.commit()
     await db.refresh(row)
     return row
@@ -279,6 +403,10 @@ async def cold_start_research(
             "market": body.market,
             "language": body.language,
             "seed_keywords": body.seed_keywords,
+            "include_paa": body.include_paa,
+            "include_related": body.include_related,
+            "max_expansions": body.max_expansions,
+            "max_seeds": body.max_seeds,
         },
     )
     await db.commit()

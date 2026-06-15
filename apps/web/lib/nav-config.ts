@@ -37,14 +37,21 @@ export function workspaceNavItems(workspaceId: string): NavItem[] {
       description: "完成站點與資料源設定",
     },
     {
+      href: `/app/${workspaceId}/settings/sites`,
+      label: "站點",
+      permission: "site:read",
+      description: "管理客戶網站 domain 與基本資料",
+    },
+    {
       href: `/app/${workspaceId}/settings`,
       label: "設定",
       permission: "workspace:read",
     },
     {
       href: `/app/${workspaceId}/settings/integrations`,
-      label: "整合",
+      label: "GSC 連線",
       permission: "integration:read",
+      description: "Google Search Console 授權與同步",
     },
     {
       href: `/app/${workspaceId}/settings/members`,

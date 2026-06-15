@@ -10,6 +10,7 @@ from exposureflow_api.common.errors import not_found
 from exposureflow_api.database import get_db
 from exposureflow_api.integrations.schemas import (
     Ga4PageMetricResponse,
+    GscDataSummaryResponse,
     GscRowResponse,
     SerpSlotResponse,
     SerpSnapshotRequest,
@@ -18,6 +19,7 @@ from exposureflow_api.integrations.schemas import (
     SyncTriggerRequest,
     TechnicalIssueResponse,
 )
+from exposureflow_api.integrations.gsc_summary import get_gsc_data_summary
 from exposureflow_api.jobs.service import enqueue_job
 from exposureflow_api.models import (
     Ga4PageMetric,
@@ -147,6 +149,23 @@ async def query_gsc_performance(
     stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get("/gsc/summary", response_model=GscDataSummaryResponse)
+async def get_gsc_summary(
+    site_id: UUID,
+    top_queries: int = Query(default=5, ge=1, le=20),
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("integration:read")),
+    db: AsyncSession = Depends(get_db),
+) -> GscDataSummaryResponse:
+    _user, _membership, workspace_id = ctx
+    summary = await get_gsc_data_summary(
+        db,
+        workspace_id=workspace_id,
+        site_id=site_id,
+        top_queries_limit=top_queries,
+    )
+    return GscDataSummaryResponse.model_validate(summary)
 
 
 @router.get("/ga4/pages", response_model=list[Ga4PageMetricResponse])

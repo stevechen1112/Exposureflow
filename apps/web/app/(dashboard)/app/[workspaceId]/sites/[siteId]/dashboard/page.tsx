@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ExposureDashboardMetrics } from "@exposureflow/shared-types";
 import { KpiCard } from "@/components/KpiCard";
 import { PageHeader } from "@/components/PageHeader";
+import { parseApiError } from "@/components/ForbiddenState";
 import { useSiteContext } from "@/lib/hooks";
 
 const RANGE_OPTIONS = [
@@ -56,7 +57,7 @@ export default function DashboardPage() {
         setData(d);
         setError(null);
       })
-      .catch((err: Error) => setError(err.message))
+      .catch((err: Error) => setError(parseApiError(err.message).friendly))
       .finally(() => setLoading(false));
   }, [client, siteId, range]);
 

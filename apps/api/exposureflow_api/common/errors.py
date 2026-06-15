@@ -25,3 +25,11 @@ def not_found(resource: str) -> APIError:
         message=f"{resource} not found.",
         status_code=status.HTTP_404_NOT_FOUND,
     )
+
+
+def validation_error(message: str, code: str = "VALIDATION_ERROR") -> APIError:
+    return APIError(
+        code=code,
+        message=message,
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )

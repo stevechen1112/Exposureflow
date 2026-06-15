@@ -98,3 +98,19 @@ class SyncStateResponse(BaseModel):
     cursor_json: dict
 
     model_config = {"from_attributes": True}
+
+
+class GscTopQuerySummary(BaseModel):
+    query: str
+    impressions: int
+    clicks: int
+    position: float
+
+
+class GscDataSummaryResponse(BaseModel):
+    total_rows: int
+    distinct_queries: int
+    distinct_pages: int
+    earliest_date: date | None
+    latest_date: date | None
+    top_queries: list[GscTopQuerySummary]

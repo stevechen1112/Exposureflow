@@ -83,6 +83,7 @@ export default function OnboardingPage() {
   const [intakes, setIntakes] = useState<Array<Record<string, unknown>>>([]);
   const [syncStates, setSyncStates] = useState<Array<Record<string, unknown>>>([]);
   const [knowledgeSources, setKnowledgeSources] = useState<Array<Record<string, unknown>>>([]);
+  const [keywordNodes, setKeywordNodes] = useState<Array<Record<string, unknown>>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [storedSiteId, setStoredSiteId] = useState<string | null>(null);
@@ -90,18 +91,37 @@ export default function OnboardingPage() {
   useEffect(() => {
     const sid = localStorage.getItem(storageKey("siteId"));
     setStoredSiteId(sid);
-    Promise.all([
-      client.listSites(),
-      client.listStrategyIntakes(),
-      client.listSyncStates(),
-      client.listKnowledgeSources(sid ?? "").catch(() => [] as Array<Record<string, unknown>>),
-    ])
-      .then(([s, i, sync, ks]) => {
-        setSites(s);
-        setIntakes(i);
-        setSyncStates(sync);
-        setKnowledgeSources(ks);
-        if (s[0]) localStorage.setItem(storageKey("siteId"), s[0].id);
+    client
+      .listSites()
+      .then((s) => {
+        const activeSiteId = s[0]?.id ?? sid;
+        if (!activeSiteId) {
+          return Promise.all([
+            Promise.resolve(s),
+            Promise.resolve([] as Array<Record<string, unknown>>),
+            client.listSyncStates(),
+            Promise.resolve([] as Array<Record<string, unknown>>),
+            Promise.resolve([] as Array<Record<string, unknown>>),
+          ]);
+        }
+        return Promise.all([
+          Promise.resolve(s),
+          client.listStrategyIntakes(activeSiteId),
+          client.listSyncStates(),
+          client.listKnowledgeSources(activeSiteId).catch(
+            () => [] as Array<Record<string, unknown>>,
+          ),
+          client.listKeywordPyramid(activeSiteId).catch(() => [] as Array<Record<string, unknown>>),
+        ]);
+      })
+      .then(([s, i, sync, ks, keywords]) => {
+        const siteList = s as Site[];
+        setSites(siteList);
+        setIntakes(i as Array<Record<string, unknown>>);
+        setSyncStates(sync as Array<Record<string, unknown>>);
+        setKnowledgeSources(ks as Array<Record<string, unknown>>);
+        setKeywordNodes(keywords as Array<Record<string, unknown>>);
+        if (siteList[0]) localStorage.setItem(storageKey("siteId"), siteList[0].id);
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false));
@@ -110,9 +130,17 @@ export default function OnboardingPage() {
   const siteId = sites[0]?.id ?? storedSiteId;
   const hasGscSync = syncStates.some((s) => String(s.provider) === "gsc" && s.last_success_at);
   const hasApprovedIntake = intakes.some(
-    (i) => String(i.status) === "approved" || String(i.status) === "active",
+    (i) =>
+      (Boolean(i.is_current) && String(i.status) === "approved") ||
+      String(i.status) === "approved" ||
+      String(i.status) === "active",
   );
-  const hasKeywordPyramid = intakes.some((i) => i.keyword_count && Number(i.keyword_count) > 0);
+  const hasKeywordPyramid = keywordNodes.some(
+    (node) =>
+      String(node.business_fit_status) === "in_scope" &&
+      Boolean(node.approved_at) &&
+      ["pillar", "cluster", "long_tail"].includes(String(node.node_type)),
+  );
   const hasApprovedKnowledge = knowledgeSources.some(
     (ks) => String(ks.approval_status) === "approved",
   );
@@ -124,8 +152,8 @@ export default function OnboardingPage() {
         label: "建立站點",
         description: "設定您要分析的網站 domain 與基本資訊",
         status: sites.length > 0 ? "done" : "action_required",
-        action: sites.length === 0 ? "前往設定" : undefined,
-        href: sites.length === 0 ? `/app/${params.workspaceId}/settings` : undefined,
+        action: sites.length === 0 ? "前往站點管理" : undefined,
+        href: sites.length === 0 ? `/app/${params.workspaceId}/settings/sites` : `/app/${params.workspaceId}/settings/sites`,
       },
       {
         id: "gsc",
@@ -136,7 +164,7 @@ export default function OnboardingPage() {
           : syncStates.some((s) => String(s.provider) === "gsc")
             ? "pending"
             : "action_required",
-        action: !hasGscSync ? "前往整合設定" : undefined,
+        action: !hasGscSync ? "前往 GSC 連線" : undefined,
         href: !hasGscSync ? `/app/${params.workspaceId}/settings/integrations` : undefined,
       },
       {
@@ -150,8 +178,13 @@ export default function OnboardingPage() {
       {
         id: "keywords",
         label: "建立 Keyword Pyramid",
-        description: "定義核心關鍵字、長尾關鍵字與優先級",
-        status: hasKeywordPyramid ? "done" : "pending",
+        description: "定義並核准至少 1 個正式 pillar/cluster/long-tail 節點",
+        status: hasKeywordPyramid ? "done" : siteId ? "action_required" : "pending",
+        action: !hasKeywordPyramid && siteId ? "前往關鍵字金字塔" : undefined,
+        href:
+          !hasKeywordPyramid && siteId
+            ? `/app/${params.workspaceId}/sites/${siteId}/keyword-pyramid`
+            : undefined,
       },
       {
         id: "knowledge",
@@ -363,7 +396,7 @@ export default function OnboardingPage() {
                 className="btn"
                 onClick={() => router.push(`/app/${params.workspaceId}/settings/integrations`)}
               >
-                整合設定
+                GSC 連線
               </button>
             </div>
           )}

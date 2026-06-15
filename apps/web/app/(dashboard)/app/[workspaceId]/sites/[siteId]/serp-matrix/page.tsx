@@ -94,12 +94,16 @@ export default function SerpMatrixPage() {
   if (!matrix && loading) return <p style={{ color: "var(--muted)" }}>載入 SERP 矩陣…</p>;
   if (!matrix) return <p style={{ color: "var(--danger)" }}>{error ?? "無法載入矩陣"}</p>;
 
+  const keywords = matrix.keywords ?? [];
+  const slotTypes = matrix.slot_types ?? [];
+  const cells = matrix.cells ?? [];
+
   // Summary stats
-  const totalCells = matrix.keywords.length * matrix.slot_types.length;
-  const ownedCells = matrix.cells.filter(
+  const totalCells = keywords.length * slotTypes.length;
+  const ownedCells = cells.filter(
     (c) => c.status === "achieved" || c.status === "owned",
   ).length;
-  const blockedCells = matrix.cells.filter((c) => c.status === "blocked").length;
+  const blockedCells = cells.filter((c) => c.status === "blocked").length;
   const coveragePct = totalCells > 0 ? Math.round((ownedCells / totalCells) * 100) : 0;
 
   return (
@@ -113,11 +117,11 @@ export default function SerpMatrixPage() {
       <div className="kpi-grid" style={{ marginBottom: "1.5rem" }}>
         <div className="card">
           <div className="kpi-label">追蹤關鍵字</div>
-          <div className="kpi-value">{matrix.keywords.length}</div>
+          <div className="kpi-value">{keywords.length}</div>
         </div>
         <div className="card">
           <div className="kpi-label">追蹤版位類型</div>
-          <div className="kpi-value">{matrix.slot_types.length}</div>
+          <div className="kpi-value">{slotTypes.length}</div>
         </div>
         <div className="card">
           <div className="kpi-label">版位覆蓋率</div>
@@ -188,12 +192,12 @@ export default function SerpMatrixPage() {
         <div
           className="matrix-grid"
           style={{
-            gridTemplateColumns: `180px repeat(${matrix.slot_types.length}, minmax(80px, 1fr))`,
+            gridTemplateColumns: `180px repeat(${slotTypes.length}, minmax(80px, 1fr))`,
           }}
         >
           {/* Header row */}
           <div />
-          {matrix.slot_types.map((slot) => (
+          {slotTypes.map((slot) => (
             <div
               key={slot}
               style={{
@@ -209,7 +213,7 @@ export default function SerpMatrixPage() {
           ))}
 
           {/* Data rows */}
-          {matrix.keywords.map((kw) => (
+          {keywords.map((kw) => (
             <Fragment key={kw}>
               <div
                 style={{
@@ -222,8 +226,8 @@ export default function SerpMatrixPage() {
               >
                 {kw}
               </div>
-              {matrix.slot_types.map((slot) => {
-                const cell = matrix.cells.find(
+              {slotTypes.map((slot) => {
+                const cell = cells.find(
                   (c) => c.keyword === kw && c.slot_type === slot,
                 );
                 const status = cell?.status ?? "available";

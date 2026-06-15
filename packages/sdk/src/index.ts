@@ -5,7 +5,10 @@ import type {
   Opportunity,
   SerpMatrixResponse,
   Site,
+  SiteCreateInput,
+  SiteUpdateInput,
   Workspace,
+  WorkspaceCreateInput,
 } from "@exposureflow/shared-types";
 
 export type ExposureFlowClientOptions = {
@@ -134,10 +137,58 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/integrations/sync-states${q}`);
   }
 
-  triggerGscSync(siteId: string): Promise<{ job_run_id: string }> {
+  listIntegrationCredentials(): Promise<
+    Array<{
+      id: string;
+      site_id: string | null;
+      provider: string;
+      credential_name: string;
+      credential_type: string;
+      status: string;
+    }>
+  > {
+    return request(this.options, `/api/v1/integrations/credentials`);
+  }
+
+  listGscPerformance(
+    siteId: string,
+    opts?: { query?: string; page?: string; limit?: number },
+  ): Promise<Array<Record<string, unknown>>> {
+    const params = new URLSearchParams({ site_id: siteId });
+    if (opts?.query) params.set("query", opts.query);
+    if (opts?.page) params.set("page", opts.page);
+    if (opts?.limit != null) params.set("limit", String(opts.limit));
+    return request(this.options, `/api/v1/integrations/gsc/performance?${params}`);
+  }
+
+  getGscDataSummary(
+    siteId: string,
+    topQueries?: number,
+  ): Promise<{
+    total_rows: number;
+    distinct_queries: number;
+    distinct_pages: number;
+    earliest_date: string | null;
+    latest_date: string | null;
+    top_queries: Array<{
+      query: string;
+      impressions: number;
+      clicks: number;
+      position: number;
+    }>;
+  }> {
+    const params = new URLSearchParams({ site_id: siteId });
+    if (topQueries != null) params.set("top_queries", String(topQueries));
+    return request(this.options, `/api/v1/integrations/gsc/summary?${params}`);
+  }
+
+  triggerGscSync(
+    siteId: string,
+    inputJson?: Record<string, unknown>,
+  ): Promise<{ job_run_id: string; status: string }> {
     return request(this.options, `/api/v1/integrations/gsc/sync`, {
       method: "POST",
-      body: JSON.stringify({ site_id: siteId, input_json: {} }),
+      body: JSON.stringify({ site_id: siteId, input_json: inputJson ?? {} }),
     });
   }
 
@@ -160,6 +211,31 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/sites`);
   }
 
+  getSite(siteId: string): Promise<Site> {
+    return request(this.options, `/api/v1/sites/${siteId}`);
+  }
+
+  createSite(body: SiteCreateInput): Promise<Site> {
+    return request(this.options, `/api/v1/sites`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateSite(siteId: string, body: SiteUpdateInput): Promise<Site> {
+    return request(this.options, `/api/v1/sites/${siteId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  createWorkspace(body: WorkspaceCreateInput): Promise<Workspace> {
+    return request(this.options, `/api/v1/workspaces`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   listMembers(): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/members`);
   }
@@ -178,16 +254,217 @@ export class ExposureFlowClient {
     });
   }
 
-  listStrategyIntakes(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/strategy/intakes`);
+  listStrategyIntakes(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/strategy/intakes?site_id=${siteId}`);
   }
 
-  listKeywordPyramid(siteId: string): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/strategy/keyword-pyramid?site_id=${siteId}`);
+  getCurrentStrategyIntake(siteId: string): Promise<Record<string, unknown> | null> {
+    return request(this.options, `/api/v1/strategy/intakes/current?site_id=${siteId}`);
   }
 
-  listDeliveryCommitments(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/strategy/delivery-commitments`);
+  createStrategyIntake(body: {
+    site_id: string;
+    company_summary?: string | null;
+    market_notes?: string | null;
+    customer_segments_json?: string[];
+    domestic_markets_json?: string[];
+    export_markets_json?: string[];
+    sales_regions_json?: string[];
+    strategic_goals_json?: string[];
+    constraints_json?: string[];
+    change_summary?: string | null;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/intakes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  forkStrategyIntake(intakeId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/intakes/${intakeId}/fork`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  previewStrategyIntakeImpact(intakeId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/intakes/${intakeId}/impact-preview`);
+  }
+
+  updateStrategyIntake(
+    intakeId: string,
+    body: Partial<{
+      company_summary: string | null;
+      market_notes: string | null;
+      customer_segments_json: string[];
+      domestic_markets_json: string[];
+      export_markets_json: string[];
+      sales_regions_json: string[];
+      strategic_goals_json: string[];
+      constraints_json: string[];
+      change_summary: string | null;
+    }>,
+  ): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/intakes/${intakeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  approveStrategyIntake(intakeId: string): Promise<{
+    intake: Record<string, unknown>;
+    impact: Record<string, unknown>;
+  }> {
+    return request(this.options, `/api/v1/strategy/intakes/${intakeId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  reapplyCurrentStrategyIntake(siteId: string): Promise<{
+    intake: Record<string, unknown>;
+    impact: Record<string, unknown>;
+  }> {
+    return request(this.options, `/api/v1/strategy/intakes/current/reapply?site_id=${siteId}`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  listKeywordPyramid(
+    siteId: string,
+    filters?: { status?: string; market?: string; language?: string },
+  ): Promise<Array<Record<string, unknown>>> {
+    const params = new URLSearchParams({ site_id: siteId });
+    if (filters?.status) params.set("status", filters.status);
+    if (filters?.market) params.set("market", filters.market);
+    if (filters?.language) params.set("language", filters.language);
+    return request(this.options, `/api/v1/strategy/keyword-pyramid?${params.toString()}`);
+  }
+
+  listConstraintRules(
+    siteId: string,
+    activeOnly = true,
+  ): Promise<Array<Record<string, unknown>>> {
+    return request(
+      this.options,
+      `/api/v1/strategy/constraint-rules?site_id=${siteId}&active_only=${activeOnly}`,
+    );
+  }
+
+  createKeywordPyramidNode(body: {
+    site_id: string;
+    keyword: string;
+    node_type: string;
+    parent_id?: string | null;
+    product_service_scope_id?: string | null;
+    intent?: string | null;
+    target_market?: string | null;
+    language?: string | null;
+    keyword_level?: string | null;
+    funnel_stage?: string | null;
+    is_target?: boolean;
+    business_fit_status?: string;
+    priority?: number;
+    created_by?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateKeywordPyramidNode(
+    nodeId: string,
+    body: Partial<{
+      keyword: string;
+      node_type: string;
+      parent_id: string | null;
+      product_service_scope_id: string | null;
+      intent: string | null;
+      target_market: string | null;
+      language: string | null;
+      keyword_level: string | null;
+      funnel_stage: string | null;
+      is_target: boolean;
+      business_fit_status: string;
+      priority: number;
+    }>,
+  ): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/${nodeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  approveKeywordPyramidNode(nodeId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/${nodeId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  deleteKeywordPyramidNode(nodeId: string): Promise<void> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/${nodeId}`, {
+      method: "DELETE",
+    });
+  }
+
+  bulkImportKeywordPyramid(body: {
+    site_id: string;
+    created_by?: string;
+    rows: Array<{
+      keyword: string;
+      node_type?: string;
+      parent_keyword?: string | null;
+      intent?: string | null;
+      target_market?: string | null;
+      language?: string | null;
+      keyword_level?: string | null;
+      funnel_stage?: string | null;
+      is_target?: boolean;
+      business_fit_status?: string;
+      priority?: number;
+      product_service_scope_id?: string | null;
+    }>;
+  }): Promise<{ created: number; skipped: number; errors: string[] }> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/bulk-import`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  syncPyramidTopicBridge(siteId: string): Promise<{ linked: number; skipped: number }> {
+    return request(
+      this.options,
+      `/api/v1/strategy/keyword-pyramid/sync-topic-bridge?site_id=${siteId}`,
+      { method: "POST", body: JSON.stringify({}) },
+    );
+  }
+
+  coldStartResearch(body: {
+    site_id: string;
+    seed_keywords: string[];
+    market?: string | null;
+    language?: string | null;
+    include_paa?: boolean;
+    include_related?: boolean;
+    max_expansions?: number;
+    max_seeds?: number;
+  }): Promise<{ job_id: string; status: string }> {
+    return request(this.options, `/api/v1/strategy/cold-start-research`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listProductScopes(siteId: string, status?: string): Promise<Array<Record<string, unknown>>> {
+    const q = status ? `&status=${encodeURIComponent(status)}` : "";
+    return request(this.options, `/api/v1/strategy/product-scopes?site_id=${siteId}${q}`);
+  }
+
+  listDeliveryCommitments(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/strategy/delivery-commitments?site_id=${siteId}`);
   }
 
   getBrandProfile(siteId: string): Promise<Record<string, unknown> | null> {

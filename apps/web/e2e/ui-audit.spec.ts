@@ -28,6 +28,7 @@ const MARKETING_ROUTES = [
   { name: "Privacy", path: "/privacy" },
   { name: "DPA", path: "/dpa" },
   { name: "App Entry", path: "/app-entry" },
+  { name: "Dev Login", path: "/dev/login" },
 ];
 
 const INTERNAL_ADMIN_ROUTES = [
@@ -138,7 +139,13 @@ async function auditPage(
 
 async function bootstrapAppSession(page: Page): Promise<{ workspaceId: string; siteId: string } | null> {
   await page.goto("/app-entry", { waitUntil: "networkidle", timeout: 45_000 });
-  await page.waitForTimeout(2500);
+  const loginButton = page.getByRole("button", { name: "登入" });
+  if (await loginButton.isVisible().catch(() => false)) {
+    await loginButton.click();
+    await page.waitForURL(/\/app\/|\/client\/|\/internal-admin\//, { timeout: 20_000 }).catch(() => undefined);
+  } else {
+    await page.waitForTimeout(1500);
+  }
 
   let url = page.url();
   const wsMatch = url.match(/\/app\/([0-9a-f-]{36})/i);
@@ -203,7 +210,7 @@ function buildDashboardRoutes(workspaceId: string, siteId: string) {
     { name: "SERPO", path: `${base}/serpo` },
     { name: "Onboarding", path: `/app/${workspaceId}/onboarding` },
     { name: "設定", path: `/app/${workspaceId}/settings` },
-    { name: "整合", path: `/app/${workspaceId}/settings/integrations` },
+    { name: "GSC 連線", path: `/app/${workspaceId}/settings/integrations` },
     { name: "成員", path: `/app/${workspaceId}/settings/members` },
     { name: "計費", path: `/app/${workspaceId}/settings/billing` },
     { name: "Agency 總覽", path: `/app/${workspaceId}/agency` },

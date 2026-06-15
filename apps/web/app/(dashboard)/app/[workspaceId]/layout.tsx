@@ -13,7 +13,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
 
   return (
     <SessionBootstrap>
-      <TwoFactorStepUpGate>
+      <TwoFactorStepUpGate workspaceId={workspaceId}>
         <WorkspaceAuthProvider workspaceId={workspaceId}>
           <WorkspaceGuard workspaceId={workspaceId}>
             <AppShell workspaceId={workspaceId}>{children}</AppShell>

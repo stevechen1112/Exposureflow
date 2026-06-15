@@ -29,7 +29,7 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
   useEffect(() => {
     const token = localStorage.getItem(storageKey("token"));
     if (!token) {
-      setError("請先從 /app-entry 以「平台支援」角色登入。");
+      setError("請先登入，或從 /dev/login 以「平台支援」角色登入。");
       return;
     }
     const client = createClient({ baseUrl: API_BASE_URL, token });
@@ -71,9 +71,9 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
       <main style={{ padding: "2rem" }}>
         <ForbiddenState
           title="此區域僅限平台支援人員"
-          message="您目前的工作區角色無法存取 Internal Admin。請使用 support@example.com（平台支援）從 /app-entry 登入。"
-          homeHref="/app-entry"
-          homeLabel="切換角色登入"
+          message="您目前的工作區角色無法存取 Internal Admin。請從 /dev/login 以 support@example.com（平台支援）登入。"
+          homeHref="/dev/login"
+          homeLabel="開發者角色切換"
         />
       </main>
     );
@@ -114,7 +114,7 @@ export default function InternalAdminLayout({ children }: { children: React.Reac
           })}
         </nav>
         <div style={{ padding: "1rem 1.25rem 0", fontSize: "0.78rem" }}>
-          <Link href="/app-entry">← 切換角色</Link>
+          <Link href="/dev/login">← 切換角色</Link>
         </div>
       </aside>
       <main style={{ flex: 1, padding: "1.5rem 2rem" }}>{children}</main>

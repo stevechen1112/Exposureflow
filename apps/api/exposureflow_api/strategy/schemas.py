@@ -16,6 +16,7 @@ class BusinessIntakeCreate(BaseModel):
     sales_regions_json: list = Field(default_factory=list)
     strategic_goals_json: list = Field(default_factory=list)
     constraints_json: list = Field(default_factory=list)
+    change_summary: str | None = None
 
 
 class BusinessIntakeUpdate(BaseModel):
@@ -27,7 +28,7 @@ class BusinessIntakeUpdate(BaseModel):
     sales_regions_json: list | None = None
     strategic_goals_json: list | None = None
     constraints_json: list | None = None
-    status: str | None = None
+    change_summary: str | None = None
 
 
 class BusinessIntakeResponse(BaseModel):
@@ -35,6 +36,11 @@ class BusinessIntakeResponse(BaseModel):
     workspace_id: UUID
     site_id: UUID
     status: str
+    version_number: int
+    parent_intake_id: UUID | None
+    is_current: bool
+    archived_at: datetime | None
+    change_summary: str | None
     company_summary: str | None
     market_notes: str | None
     customer_segments_json: list
@@ -49,6 +55,29 @@ class BusinessIntakeResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class StrategyImpactPreviewResponse(BaseModel):
+    keywords_to_add: list[dict]
+    keywords_to_block: list[dict]
+    constraint_rules_to_upsert: list[dict] = Field(default_factory=list)
+    scopes_to_upsert: list[dict]
+    opportunities_affected: int
+    opportunity_samples: list[dict]
+    changes_summary: dict
+
+
+class StrategyImpactApplyResponse(BaseModel):
+    scope_id: str | None
+    keywords_created: int
+    keywords_updated: int
+    constraint_rules_synced: int = 0
+    opportunities_rescored: int
+
+
+class BusinessIntakeApproveResponse(BaseModel):
+    intake: BusinessIntakeResponse
+    impact: StrategyImpactApplyResponse
 
 
 class ProductServiceScopeCreate(BaseModel):
@@ -100,6 +129,9 @@ class KeywordPyramidNodeCreate(BaseModel):
     intent: str | None = None
     target_market: str | None = None
     language: str | None = None
+    keyword_level: str | None = None
+    funnel_stage: str | None = None
+    is_target: bool = False
     business_fit_status: str = "in_scope"
     priority: int = 3
     created_by: str = "consultant"
@@ -114,6 +146,9 @@ class KeywordPyramidNodeUpdate(BaseModel):
     intent: str | None = None
     target_market: str | None = None
     language: str | None = None
+    keyword_level: str | None = None
+    funnel_stage: str | None = None
+    is_target: bool | None = None
     business_fit_status: str | None = None
     priority: int | None = None
     evidence_json: dict | None = None
@@ -125,11 +160,16 @@ class KeywordPyramidNodeResponse(BaseModel):
     site_id: UUID
     parent_id: UUID | None
     product_service_scope_id: UUID | None
+    topic_node_id: UUID | None = None
+    topic_cluster_id: UUID | None = None
     keyword: str
     node_type: str
     intent: str | None
     target_market: str | None
     language: str | None
+    keyword_level: str | None = None
+    funnel_stage: str | None = None
+    is_target: bool = False
     business_fit_status: str
     priority: int
     created_by: str
@@ -200,8 +240,62 @@ class BusinessFitEvaluateResponse(BaseModel):
     evidence: dict
 
 
+class BusinessConstraintRuleResponse(BaseModel):
+    id: UUID
+    workspace_id: UUID
+    site_id: UUID
+    source_intake_id: UUID | None
+    source_intake_version: int | None
+    description: str
+    rule_type: str
+    match_pattern: str
+    action: str
+    is_active: bool
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ColdStartResearchRequest(BaseModel):
     site_id: UUID
     market: str | None = None
     language: str | None = None
     seed_keywords: list[str] = Field(default_factory=list)
+    include_paa: bool = True
+    include_related: bool = True
+    max_expansions: int = Field(default=12, ge=1, le=30)
+    max_seeds: int = Field(default=5, ge=1, le=10)
+
+
+class KeywordPyramidBulkImportRow(BaseModel):
+    keyword: str
+    node_type: str = "pillar"
+    parent_keyword: str | None = None
+    intent: str | None = None
+    target_market: str | None = None
+    language: str | None = None
+    keyword_level: str | None = None
+    funnel_stage: str | None = None
+    is_target: bool = False
+    business_fit_status: str = "needs_review"
+    priority: int = 3
+    product_service_scope_id: UUID | None = None
+
+
+class KeywordPyramidBulkImportRequest(BaseModel):
+    site_id: UUID
+    rows: list[KeywordPyramidBulkImportRow] = Field(default_factory=list)
+    created_by: str = "consultant"
+
+
+class KeywordPyramidBulkImportResponse(BaseModel):
+    created: int
+    skipped: int
+    errors: list[str] = Field(default_factory=list)
+
+
+class PyramidTopicBridgeResponse(BaseModel):
+    linked: int
+    skipped: int

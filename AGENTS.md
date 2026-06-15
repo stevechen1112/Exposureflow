@@ -12,6 +12,11 @@
 
 - `docs/product/phase-log.md`
 
+**上線／部署 Scope（GTM 決策 — 部署與整合優先序以此為準）：**
+
+- `docs/product/gtm-deployment-scope.md` — 顧問優先、無自助註冊／計費、現階段 Consultant-Only；與 `pre-launch-audit.md` / `launch-checklist.md` 的「全自助 SaaS」假設衝突時 **以 GTM 文件為準**
+- `docs/product/consultant-site-onboarding-playbook.md` — **每一案目標網站** 串接 SOP（顧問操作、客戶資料、GSC、驗收）
+
 Cursor 自動規則：`.cursor/rules/exposureflow-constitution.mdc`
 
 ---

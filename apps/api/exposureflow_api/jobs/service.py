@@ -69,7 +69,7 @@ async def enqueue_job(
     celery_app.send_task(
         "exposureflow_api.jobs.tasks.execute_job_run",
         args=[str(run.id)],
-        queue=f"workspace:{workspace_id}",
+        queue="default",
     )
     return run
 

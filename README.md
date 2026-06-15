@@ -37,6 +37,22 @@ ExposureFlow/
 | Queue | Redis、Celery |
 | Billing | Stripe |
 
+## 正式環境（Linode）
+
+子網域：`app.kakusinn.com`（HTTPS）
+
+| 項目 | 網址 |
+|------|------|
+| 首頁 | https://app.kakusinn.com |
+| 顧問登入 | https://app.kakusinn.com/app-entry |
+| 站點管理 | https://app.kakusinn.com/app/{workspaceId}/settings/sites |
+| API Health | https://app.kakusinn.com/health ✅ |
+| 開發切角色 | https://app.kakusinn.com/dev/login |
+
+部署與重啟指令見 [Linode 部署 Runbook](docs/product/linode-deploy-runbook.md)；上線 scope 見 [GTM 部署決策](docs/product/gtm-deployment-scope.md)。
+
+**新案接入（任何目標網站）**：見 [顧問 Site Onboarding Playbook](docs/product/consultant-site-onboarding-playbook.md)。
+
 ## 快速開始
 
 ```bash
@@ -63,6 +79,7 @@ pnpm --filter @exposureflow/web dev
 - [ContentFlow 移植地圖](docs/product/contentflow-porting-map.md)
 - [自然曝光 SEO 策略](docs/product/organic-impressions-seo-plan.md)
 - [ExposureFlow 開發計畫](docs/product/exposureflow-development-plan.md)
+- **[目標網站串接 Playbook](docs/product/consultant-site-onboarding-playbook.md)** — 每一案 client site 標準 SOP（顧問操作 + 客戶資料 + GSC）
 
 ## 授權
 

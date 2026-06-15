@@ -62,12 +62,26 @@ class SiteCreate(BaseModel):
     business_model: str | None = None
 
 
+class SiteUpdate(BaseModel):
+    domain: str | None = Field(default=None, min_length=3, max_length=255)
+    site_name: str | None = Field(default=None, min_length=1, max_length=255)
+    primary_locale: str | None = Field(default=None, min_length=2, max_length=16)
+    target_countries: list[str] | None = None
+    target_languages: list[str] | None = None
+    industry: str | None = Field(default=None, max_length=128)
+    business_model: str | None = Field(default=None, max_length=128)
+
+
 class SiteResponse(BaseModel):
     id: UUID
     workspace_id: UUID
     domain: str
     site_name: str
     primary_locale: str
+    target_countries: list[str] = Field(default_factory=list)
+    target_languages: list[str] = Field(default_factory=list)
+    industry: str | None = None
+    business_model: str | None = None
     status: str
 
     model_config = {"from_attributes": True}
