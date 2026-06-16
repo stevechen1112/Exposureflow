@@ -363,6 +363,22 @@ async def update_delivery_commitment(
     return row
 
 
+@router.post(
+    "/delivery-commitments/{commitment_id}/deactivate",
+    response_model=DeliveryCommitmentResponse,
+)
+async def deactivate_delivery_commitment(
+    commitment_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    row = await service.deactivate_delivery_commitment(db, workspace_id, commitment_id)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
 @router.post("/business-fit/evaluate", response_model=BusinessFitEvaluateResponse)
 async def evaluate_business_fit(
     body: BusinessFitEvaluateRequest,

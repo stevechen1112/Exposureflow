@@ -67,7 +67,21 @@ async def list_sources(
     if status:
         stmt = stmt.where(KnowledgeSource.status == status)
     result = await db.execute(stmt.order_by(KnowledgeSource.updated_at.desc()))
-    return list(result.scalars().all())
+    sources = list(result.scalars().all())
+    # Eager-load fact counts for each source
+    if sources:
+        source_ids = [s.id for s in sources]
+        from sqlalchemy import func
+        from exposureflow_api.models.knowledge import KnowledgeFact
+        fact_counts = await db.execute(
+            select(KnowledgeFact.knowledge_source_id, func.count(KnowledgeFact.id))
+            .where(KnowledgeFact.knowledge_source_id.in_(source_ids))
+            .group_by(KnowledgeFact.knowledge_source_id)
+        )
+        counts = {row[0]: row[1] for row in fact_counts.all()}
+        for s in sources:
+            s._fact_count = counts.get(s.id, 0)
+    return sources
 
 
 async def create_source(
@@ -76,9 +90,25 @@ async def create_source(
     owner_user_id: UUID | None,
     **fields,
 ) -> KnowledgeSource:
+    content_text = fields.pop("content_text", None)
+    fields.pop("source_url", None)  # frontend alias, not a model field
     row = KnowledgeSource(workspace_id=workspace_id, owner_user_id=owner_user_id, **fields)
     db.add(row)
     await db.flush()
+    if content_text:
+        fact = KnowledgeFact(
+            workspace_id=workspace_id,
+            site_id=row.site_id,
+            knowledge_source_id=row.id,
+            fact_type="manual_input",
+            subject=row.title,
+            fact_text=content_text,
+            market=row.market,
+            language=row.language,
+            status="draft",
+        )
+        db.add(fact)
+        await db.flush()
     return row
 
 

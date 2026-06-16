@@ -529,6 +529,13 @@ export class ExposureFlowClient {
     });
   }
 
+  deactivateDeliveryCommitment(commitmentId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/delivery-commitments/${commitmentId}/deactivate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
   listCompetitors(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/competitors?site_id=${siteId}`);
   }

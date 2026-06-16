@@ -161,6 +161,7 @@ export function inclusionStatusLabel(node: Record<string, unknown>): string {
 }
 
 export function inclusionStatusHint(node: Record<string, unknown>): string {
+  const fit = String(node.business_fit_status ?? "");
   switch (inclusionStatus(node)) {
     case "approved":
       return "顧問已核准，會連結曝光地圖";
@@ -169,7 +170,9 @@ export function inclusionStatusHint(node: Record<string, unknown>): string {
     case "candidate":
       return "Intake / 研究草稿，需編輯後核准";
     case "excluded":
-      return "不納入本專案";
+      return fit === "blocked"
+        ? `已封鎖 — ${String(node.evidence_json && typeof node.evidence_json === "object" && (node.evidence_json as Record<string,unknown>).blocked_reason ? (node.evidence_json as Record<string,unknown>).blocked_reason : "違反限制規則")}`
+        : `已排除 — ${String(node.evidence_json && typeof node.evidence_json === "object" && (node.evidence_json as Record<string,unknown>).exclusion_reason ? (node.evidence_json as Record<string,unknown>).exclusion_reason : "超出業務範圍（out_of_scope）")}`;
     case "blocked":
       return "限制規則封鎖";
     default:

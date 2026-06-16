@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { useSiteContext } from "@/lib/hooks";
 
@@ -71,21 +71,74 @@ export default function RoadmapPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [building, setBuilding] = useState(false);
+
+  async function approveItem(itemId: string) {
+    setBusyId(itemId);
+    setSuccess(null);
+    try {
+      await client.approveRoadmapItem(itemId, siteId);
+      setSuccess("已核准該項目");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "核准失敗");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function rejectItem(itemId: string) {
+    setBusyId(itemId);
+    setSuccess(null);
+    try {
+      await client.rejectRoadmapItem(itemId, siteId);
+      setSuccess("已退回該項目");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [rms, mbs] = await Promise.all([
+        client.listRoadmaps(siteId) as Promise<Roadmap[]>,
+        client.listMembers().catch(() => [] as Member[]),
+      ]);
+      setRoadmaps(rms);
+      setMembers(mbs);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入失敗");
+    } finally {
+      setLoading(false);
+    }
+  }, [client, siteId]);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      client.listRoadmaps(siteId) as Promise<Roadmap[]>,
-      client.listMembers().catch(() => [] as Member[]),
-    ])
-      .then(([rms, mbs]) => {
-        setRoadmaps(rms);
-        setMembers(mbs);
-        setError(null);
-      })
-      .catch((err: Error) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [client, siteId]);
+    load();
+  }, [load]);
+
+  async function buildRoadmap() {
+    setBuilding(true);
+    setError(null);
+    try {
+      await client.buildRoadmap(siteId, {
+        name: "8-week exposure roadmap",
+        description: "從已核准的 Decision 自動排程 4/8/16 週執行路線",
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立 Roadmap 失敗");
+    } finally {
+      setBuilding(false);
+    }
+  }
 
   const memberMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -113,6 +166,7 @@ export default function RoadmapPage() {
     <>
       <PageHeader title="Roadmap" subtitle="4 / 8 / 16 週執行路線、項目狀態與客戶核准追蹤" />
       {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
+      {success ? <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{success}</p> : null}
 
       {!loading && roadmaps.length > 0 && (
         <div className="kpi-grid" style={{ marginBottom: "1.5rem" }}>
@@ -146,7 +200,7 @@ export default function RoadmapPage() {
         </div>
       )}
 
-      {/* Filter */}
+      {/* Filter + Build */}
       <div className="form-row" style={{ marginBottom: "1rem" }}>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">全部狀態</option>
@@ -155,12 +209,33 @@ export default function RoadmapPage() {
           <option value="completed">已完成</option>
           <option value="blocked">阻塞中</option>
         </select>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={building}
+          onClick={buildRoadmap}
+          style={{ marginLeft: "auto" }}
+        >
+          {building ? "建立中…" : "從 Decision 建立 Roadmap"}
+        </button>
       </div>
 
       {loading ? (
         <p style={{ color: "var(--muted)" }}>載入中…</p>
       ) : roadmaps.length === 0 ? (
-        <p style={{ color: "var(--muted)" }}>尚無 roadmap，請從 Decision Plane 建立。</p>
+        <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
+          <p style={{ color: "var(--muted)", marginBottom: "1rem" }}>
+            尚無 roadmap。請先在「機會佇列」核准 Decision，再點擊下方按鈕自動排程。
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={building}
+            onClick={buildRoadmap}
+          >
+            {building ? "建立中…" : "建立 Roadmap"}
+          </button>
+        </div>
       ) : (
         roadmaps.map((rm) => {
           const items = (rm.items ?? []).filter(
@@ -200,12 +275,13 @@ export default function RoadmapPage() {
                       <th>執行狀態</th>
                       <th>客戶核准</th>
                       <th>負責人</th>
+                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ color: "var(--muted)" }}>
+                        <td colSpan={7} style={{ color: "var(--muted)" }}>
                           此狀態下沒有項目
                         </td>
                       </tr>
@@ -244,6 +320,30 @@ export default function RoadmapPage() {
                           </td>
                           <td style={{ fontSize: "0.85rem" }}>
                             {resolveOwner(item.owner_user_id)}
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            {item.client_approval_status === "pending" && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary"
+                                  style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem" }}
+                                  disabled={busyId === item.id}
+                                  onClick={() => approveItem(item.id)}
+                                >
+                                  核准
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost"
+                                  style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem", marginLeft: "0.3rem", color: "var(--danger)" }}
+                                  disabled={busyId === item.id}
+                                  onClick={() => rejectItem(item.id)}
+                                >
+                                  退回
+                                </button>
+                              </>
+                            )}
                           </td>
                         </tr>
                       ))

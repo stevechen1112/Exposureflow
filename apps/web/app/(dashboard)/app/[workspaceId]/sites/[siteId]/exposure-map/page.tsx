@@ -53,8 +53,28 @@ export default function ExposureMapPage() {
   const [nodes, setNodes] = useState<TopicNode[]>([]);
   const [nodeStatusFilter, setNodeStatusFilter] = useState<string>("all");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loadingClusters, setLoadingClusters] = useState(true);
   const [loadingNodes, setLoadingNodes] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [creatingOpp, setCreatingOpp] = useState<string | null>(null);
+
+  async function createOpportunityFromGap(node: TopicNode) {
+    setCreatingOpp(node.id);
+    setError(null);
+    try {
+      await client.createExecutionJob({
+        site_id: siteId,
+        job_type: "serp.snapshot",
+        input_json: { keyword: node.keyword, country: "TW", language: "zh-TW", device: "desktop" },
+      });
+      setSuccess(`已為「${node.keyword}」建立 SERP 快照任務，完成後將產生曝光機會`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗");
+    } finally {
+      setCreatingOpp(null);
+    }
+  }
 
   const loadClusters = useCallback(async () => {
     setLoadingClusters(true);
@@ -89,6 +109,21 @@ export default function ExposureMapPage() {
     loadNodes();
   }, [loadNodes]);
 
+  async function syncBridge() {
+    setSyncing(true);
+    setError(null);
+    try {
+      const result = await client.syncPyramidTopicBridge(siteId);
+      setSuccess(`已連結 ${result.linked} 個金字塔節點到 Topic Cluster`);
+      await loadClusters();
+      await loadNodes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "同步失敗");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => nodeStatusFilter === "all" || n.status === nodeStatusFilter);
   }, [nodes, nodeStatusFilter]);
@@ -104,6 +139,21 @@ export default function ExposureMapPage() {
         subtitle="Topic cluster 覆蓋版圖；與 Keyword Pyramid 核准節點透過 sync-topic-bridge 連結"
       />
       {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
+      {success ? <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{success}</p> : null}
+
+      <div className="form-row" style={{ marginBottom: "1rem" }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={syncing}
+          onClick={syncBridge}
+        >
+          {syncing ? "同步中…" : "Sync Topic Bridge"}
+        </button>
+        <button type="button" className="btn" onClick={() => { loadClusters(); loadNodes(); }}>
+          重新整理
+        </button>
+      </div>
 
       {!loadingClusters && clusters.length > 0 && (
         <div className="kpi-grid" style={{ marginBottom: "1.5rem" }}>
@@ -179,6 +229,7 @@ export default function ExposureMapPage() {
                   <th>曝光</th>
                   <th>平均排名</th>
                   <th>最佳 URL</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -195,6 +246,19 @@ export default function ExposureMapPage() {
                     <td>{node.avg_position != null ? node.avg_position.toFixed(1) : "—"}</td>
                     <td style={{ maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis" }}>
                       {node.current_best_url ?? "—"}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      {node.status === "gap" && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ fontSize: "0.78rem", padding: "0.25rem 0.5rem" }}
+                          disabled={creatingOpp === node.id}
+                          onClick={() => createOpportunityFromGap(node)}
+                        >
+                          {creatingOpp === node.id ? "建立中…" : "補缺口"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

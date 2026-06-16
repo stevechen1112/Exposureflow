@@ -464,8 +464,31 @@ async def list_delivery_commitments(
 async def create_delivery_commitment(
     db: AsyncSession, workspace_id: UUID, **fields
 ) -> DeliveryCommitment:
-    row = DeliveryCommitment(workspace_id=workspace_id, **fields)
+    # Deactivate any existing active commitments for same site
+    from sqlalchemy import update
+    await db.execute(
+        update(DeliveryCommitment)
+        .where(
+            DeliveryCommitment.workspace_id == workspace_id,
+            DeliveryCommitment.site_id == fields.get("site_id"),
+            DeliveryCommitment.status == "active",
+        )
+        .values(status="archived")
+    )
+    row = DeliveryCommitment(workspace_id=workspace_id, status="active", **fields)
     db.add(row)
+    await db.flush()
+    return row
+
+
+async def deactivate_delivery_commitment(
+    db: AsyncSession, workspace_id: UUID, commitment_id: UUID
+) -> DeliveryCommitment:
+    from exposureflow_api.common.errors import not_found
+    row = await db.get(DeliveryCommitment, commitment_id)
+    if row is None or row.workspace_id != workspace_id:
+        raise not_found("Delivery commitment")
+    row.status = "archived"
     await db.flush()
     return row
 
