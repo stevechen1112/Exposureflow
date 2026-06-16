@@ -75,8 +75,8 @@ PLAN_DEFINITIONS: list[dict] = [
     {
         "plan_code": "enterprise",
         "name": "Enterprise",
-        "price_monthly_cents": 0,
-        "price_yearly_cents": 0,
+        "price_monthly_cents": 99900,
+        "price_yearly_cents": 999000,
         "limits_json": {
             "workspace_limit": 9999,
             "site_limit": 9999,

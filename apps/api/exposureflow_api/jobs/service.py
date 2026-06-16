@@ -18,7 +18,6 @@ JOB_TYPE_QUOTA_METRIC: dict[str, str] = {
     "serp.snapshot": "serp_snapshots",
     "content.generate.grounded_draft": "content_generation_runs",
     "content.publish_gate.check": "claim_verification_runs",
-    "knowledge.source.ingest": "knowledge_sources",
     "knowledge.fact.embed": "knowledge_embedding",
     "report.monthly.generate": "report_exports",
 }
