@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class BrandProfileUpdate(BaseModel):
@@ -38,10 +38,18 @@ class KnowledgeSourceCreate(BaseModel):
     site_id: UUID | None = None
     source_type: str
     source_uri: str | None = None
+    source_url: str | None = None  # frontend alias
     title: str
     market: str | None = None
     language: str | None = None
+    content_text: str | None = None  # optional initial fact text
     metadata_json: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def normalize_uri(self):
+        if self.source_url and not self.source_uri:
+            self.source_uri = self.source_url
+        return self
 
 
 class KnowledgeSourceUpdate(BaseModel):
@@ -71,6 +79,23 @@ class KnowledgeSourceResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    # Frontend compatibility aliases
+    @computed_field
+    @property
+    def approval_status(self) -> str:
+        return self.status
+
+    @computed_field
+    @property
+    def source_url(self) -> str | None:
+        return self.source_uri
+
+    @computed_field
+    @property
+    def fact_count(self) -> int:
+        # populated by service layer eager loading when needed
+        return getattr(self, "_fact_count", 0)
 
 
 class KnowledgeFactCreate(BaseModel):

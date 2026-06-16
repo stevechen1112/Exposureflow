@@ -180,7 +180,8 @@ async def run_launch_checklist(db: AsyncSession) -> list[CheckResult]:
         ("docs.launch_checklist", "docs/product/launch-checklist.md", "Launch checklist"),
     ]:
         path = REPO_ROOT / rel
-        await _add(doc_id, label, "documentation", path.exists(), str(path))
+        exists = path.exists()
+        await _add(doc_id, label, "documentation", exists, str(path))
 
     # Onboarding — workspace + site capability
     ws_count = int(

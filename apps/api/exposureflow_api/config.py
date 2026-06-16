@@ -16,6 +16,7 @@ class Settings(BaseSettings):
 
     serper_api_key: str | None = None
     serpapi_api_key: str | None = None
+    openai_api_key: str | None = None
 
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None

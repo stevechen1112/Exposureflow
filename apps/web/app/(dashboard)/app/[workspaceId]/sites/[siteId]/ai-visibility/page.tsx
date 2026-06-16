@@ -85,6 +85,14 @@ export default function AiVisibilityPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showProbeForm, setShowProbeForm] = useState(false);
+  const [showProbeSetForm, setShowProbeSetForm] = useState(false);
+  const [probeSetForm, setProbeSetForm] = useState({
+    name: "",
+    prompts: "",
+    surfaces: "chatgpt,perplexity,copilot,google_ai",
+    schedule: "",
+    active: true,
+  });
   const [probeForm, setProbeForm] = useState<ProbeRunForm>({
     probe_set_id: "",
     surface: "chatgpt",
@@ -147,6 +155,33 @@ export default function AiVisibilityPage() {
     }
   }
 
+  async function submitProbeSet() {
+    if (!probeSetForm.name.trim()) {
+      setError("請填寫 Probe Set 名稱");
+      return;
+    }
+    setSubmitting(true);
+    setSuccess(null);
+    try {
+      await client.createProbeSet({
+        site_id: siteId,
+        name: probeSetForm.name.trim(),
+        prompts_json: probeSetForm.prompts.split("\n").filter(Boolean),
+        surfaces_json: probeSetForm.surfaces.split(",").map((s) => s.trim()).filter(Boolean),
+        schedule: probeSetForm.schedule || null,
+        active: probeSetForm.active,
+      });
+      setSuccess("Probe Set 已建立");
+      setProbeSetForm({ name: "", prompts: "", surfaces: "chatgpt,perplexity,copilot,google_ai", schedule: "", active: true });
+      setShowProbeSetForm(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (!dash && !loading) return <p style={{ color: "var(--danger)" }}>{error ?? "無法載入"}</p>;
   if (!dash) return <p style={{ color: "var(--muted)" }}>載入 AI 能見度…</p>;
 
@@ -192,8 +227,18 @@ export default function AiVisibilityPage() {
         ))}
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn"
           style={{ marginLeft: "auto" }}
+          onClick={() => {
+            setShowProbeSetForm(!showProbeSetForm);
+            setError(null);
+          }}
+        >
+          {showProbeSetForm ? "取消" : "+ 建立 Probe Set"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
           onClick={() => {
             setShowProbeForm(!showProbeForm);
             setError(null);
@@ -306,6 +351,38 @@ export default function AiVisibilityPage() {
         </div>
       )}
 
+      {/* Probe Set creation form */}
+      {showProbeSetForm && (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <h2 style={{ fontSize: "1rem", marginTop: 0 }}>建立 Probe Set</h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: 0 }}>
+            建立一組 AI 查詢主題，後續可手動錄入各平台的 AI 回答進行品牌可見性分析
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>Probe Set 名稱 *</label>
+              <input value={probeSetForm.name} onChange={(e) => setProbeSetForm({ ...probeSetForm, name: e.target.value })} style={{ width: "100%" }} placeholder="例：ezfix 品牌能見度監測" />
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>AI 平台（逗號分隔）</label>
+              <input value={probeSetForm.surfaces} onChange={(e) => setProbeSetForm({ ...probeSetForm, surfaces: e.target.value })} style={{ width: "100%" }} placeholder="chatgpt,perplexity,copilot,google_ai" />
+            </div>
+          </div>
+          <div style={{ marginTop: "0.75rem" }}>
+            <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>Prompt 清單（每行一個問題）</label>
+            <textarea value={probeSetForm.prompts} onChange={(e) => setProbeSetForm({ ...probeSetForm, prompts: e.target.value })} rows={4} style={{ width: "100%", resize: "vertical" }} placeholder="例：台中紗窗維修推薦&#10;修理紗窗找誰&#10;換紗窗價格多少" />
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+            <button type="button" className="btn btn-primary" disabled={submitting} onClick={submitProbeSet}>
+              {submitting ? "建立中…" : "確認建立"}
+            </button>
+            <button type="button" className="btn" onClick={() => { setShowProbeSetForm(false); setError(null); }}>
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Probe Sets tab */}
       {activeTab === "probeSets" && (
         <div className="table-wrap card" style={{ padding: 0 }}>
@@ -322,7 +399,7 @@ export default function AiVisibilityPage() {
               {probeSets.length === 0 ? (
                 <tr>
                   <td colSpan={4} style={{ color: "var(--muted)" }}>
-                    尚無 probe set，請先建立
+                    尚無 probe set，請點擊上方「+ 建立 Probe Set」按鈕新增
                   </td>
                 </tr>
               ) : (

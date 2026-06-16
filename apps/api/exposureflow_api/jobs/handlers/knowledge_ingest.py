@@ -64,6 +64,8 @@ async def run_knowledge_source_ingest(db: AsyncSession, run: JobRun) -> None:
                     "Accept": "text/html,application/xhtml+xml",
                 })
                 resp.raise_for_status()
+                # Simple HTML text extraction (strip tags)
+                html = resp.text
                 # Basic tag stripping
                 text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
                 text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)

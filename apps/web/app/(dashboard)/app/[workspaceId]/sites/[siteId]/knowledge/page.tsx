@@ -64,6 +64,16 @@ export default function KnowledgePage() {
     content_text: "",
   });
   const [creating, setCreating] = useState(false);
+  const [showBrandForm, setShowBrandForm] = useState(false);
+  const [brandForm, setBrandForm] = useState({
+    canonical_brand_name: "",
+    brand_voice_json: "",
+    positioning_json: "",
+    target_markets_json: "",
+    buyer_personas_json: "",
+    compliance_policy_json: "",
+  });
+  const [savingBrand, setSavingBrand] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +85,10 @@ export default function KnowledgePage() {
       setProfile(p);
       setSources(s as KnowledgeSource[]);
       setError(null);
+      // Auto-expand brand form if profile is empty
+      if (!p || !(p as Record<string, unknown>).canonical_brand_name) {
+        setShowBrandForm(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "載入失敗");
     } finally {
@@ -139,6 +153,41 @@ export default function KnowledgePage() {
     }
   }
 
+  async function handleSaveBrand() {
+    if (!brandForm.canonical_brand_name.trim()) {
+      setError("請填寫品牌正式名稱");
+      return;
+    }
+    setSavingBrand(true);
+    setSuccess(null);
+    try {
+      const parseJson = (text: string) => {
+        if (!text.trim()) return undefined;
+        try { return JSON.parse(text); } catch { return undefined; }
+      };
+      const parseList = (text: string) => {
+        if (!text.trim()) return undefined;
+        return text.split("\n").map((s) => s.trim()).filter(Boolean);
+      };
+      await client.upsertBrandProfile({
+        site_id: siteId,
+        canonical_brand_name: brandForm.canonical_brand_name.trim(),
+        brand_voice_json: parseJson(brandForm.brand_voice_json),
+        positioning_json: parseJson(brandForm.positioning_json),
+        target_markets_json: parseList(brandForm.target_markets_json),
+        buyer_personas_json: parseList(brandForm.buyer_personas_json),
+        compliance_policy_json: parseJson(brandForm.compliance_policy_json),
+      });
+      setSuccess("已儲存 Brand Profile");
+      setShowBrandForm(false);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "儲存失敗");
+    } finally {
+      setSavingBrand(false);
+    }
+  }
+
   const approvedCount = sources.filter((s) => s.approval_status === "approved").length;
   const pendingCount = sources.filter((s) => s.approval_status === "pending_review").length;
 
@@ -150,7 +199,7 @@ export default function KnowledgePage() {
       {success ? <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{success}</p> : null}
 
       {/* Brand Profile */}
-      {profile ? (
+      {profile && String(profile.canonical_brand_name ?? "").length > 0 ? (
         <div className="card" style={{ marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
@@ -182,7 +231,125 @@ export default function KnowledgePage() {
             )}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="card" style={{ marginBottom: "1.5rem", borderColor: "var(--warning)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showBrandForm ? "1rem" : 0 }}>
+            <div>
+              <h2 style={{ fontSize: "1rem", marginTop: 0, marginBottom: "0.3rem" }}>
+                Brand Profile
+              </h2>
+              <p style={{ margin: 0, color: "var(--warning)", fontSize: "0.85rem" }}>
+                ⚠️ 尚未設定。Brand Profile 是 AI 引用與內容生成的品牌一致性基礎。
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ fontSize: "0.82rem", padding: "0.35rem 0.8rem", whiteSpace: "nowrap" }}
+              onClick={() => setShowBrandForm(!showBrandForm)}
+            >
+              {showBrandForm ? "收起" : "建立 Brand Profile"}
+            </button>
+          </div>
+          {showBrandForm && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+              <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
+                📎 策略文件 §六 AI 搜尋引用策略、Brand Entity 訊號
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    品牌正式名稱 *
+                  </label>
+                  <input
+                    value={brandForm.canonical_brand_name}
+                    onChange={(e) => setBrandForm({ ...brandForm, canonical_brand_name: e.target.value })}
+                    placeholder="例：恆惠修理紗窗"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    品牌聲音（JSON，選填）
+                  </label>
+                  <textarea
+                    value={brandForm.brand_voice_json}
+                    onChange={(e) => setBrandForm({ ...brandForm, brand_voice_json: e.target.value })}
+                    rows={2}
+                    style={{ width: "100%", resize: "vertical", fontSize: "0.8rem" }}
+                    placeholder='{"tone": "專業親切", "style": "台式服務業"}'
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    品牌定位（JSON，選填）
+                  </label>
+                  <textarea
+                    value={brandForm.positioning_json}
+                    onChange={(e) => setBrandForm({ ...brandForm, positioning_json: e.target.value })}
+                    rows={2}
+                    style={{ width: "100%", resize: "vertical", fontSize: "0.8rem" }}
+                    placeholder='{"value_prop": "台中最快到府紗窗維修"}'
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    目標市場（每行一個，選填）
+                  </label>
+                  <textarea
+                    value={brandForm.target_markets_json}
+                    onChange={(e) => setBrandForm({ ...brandForm, target_markets_json: e.target.value })}
+                    rows={2}
+                    style={{ width: "100%", resize: "vertical" }}
+                    placeholder="台中市&#10;彰化部分區域"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    Buyer Personas（每行一個，選填）
+                  </label>
+                  <textarea
+                    value={brandForm.buyer_personas_json}
+                    onChange={(e) => setBrandForm({ ...brandForm, buyer_personas_json: e.target.value })}
+                    rows={2}
+                    style={{ width: "100%", resize: "vertical" }}
+                    placeholder="台中家庭主婦&#10;老舊公寓住戶&#10;租屋族"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                    合規政策（JSON，選填）
+                  </label>
+                  <textarea
+                    value={brandForm.compliance_policy_json}
+                    onChange={(e) => setBrandForm({ ...brandForm, compliance_policy_json: e.target.value })}
+                    rows={2}
+                    style={{ width: "100%", resize: "vertical", fontSize: "0.8rem" }}
+                    placeholder='{"warranty": "施工保固 6 個月"}'
+                  />
+                </div>
+              </div>
+              <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={savingBrand}
+                  onClick={handleSaveBrand}
+                >
+                  {savingBrand ? "儲存中…" : "儲存 Brand Profile"}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setShowBrandForm(false)}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats row */}
       {!loading && (

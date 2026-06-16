@@ -72,7 +72,14 @@ async def list_sources(
     _user, _membership, workspace_id = ctx
     if site_id:
         await get_site_in_workspace(db, workspace_id, site_id)
-    return await service.list_sources(db, workspace_id, site_id, status=status)
+    sources = await service.list_sources(db, workspace_id, site_id, status=status)
+    # Inject _fact_count into response objects (Pydantic from_attributes skips _-prefixed attrs)
+    result = []
+    for s in sources:
+        resp = KnowledgeSourceResponse.model_validate(s)
+        object.__setattr__(resp, "_fact_count", getattr(s, "_fact_count", 0))
+        result.append(resp)
+    return result
 
 
 @router.post("/sources", response_model=KnowledgeSourceResponse)

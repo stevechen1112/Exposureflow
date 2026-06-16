@@ -9,6 +9,9 @@ WORKDIR /app
 COPY packages/connectors packages/connectors
 COPY packages/execution-adapters packages/execution-adapters
 COPY apps/api apps/api
+COPY docs docs
+COPY scripts scripts
+COPY apps/web apps/web
 
 WORKDIR /app/apps/api
 

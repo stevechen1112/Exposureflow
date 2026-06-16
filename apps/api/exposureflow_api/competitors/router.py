@@ -42,11 +42,26 @@ async def create_competitor(
 ) -> Competitor:
     _user, _membership, workspace_id = ctx
     await get_site_in_workspace(db, workspace_id, site_id)
+    # Normalize domain: strip protocol and trailing slash
+    domain = body.domain.lower().strip()
+    domain = domain.removeprefix("https://").removeprefix("http://").rstrip("/")
+    # Check for duplicate
+    existing = await db.execute(
+        select(Competitor).where(
+            Competitor.workspace_id == workspace_id,
+            Competitor.site_id == site_id,
+            Competitor.domain == domain,
+            Competitor.active.is_(True),
+        )
+    )
+    existing_row = existing.scalars().first()
+    if existing_row:
+        return existing_row
     competitor = Competitor(
         workspace_id=workspace_id,
         site_id=site_id,
         name=body.name,
-        domain=body.domain.lower(),
+        domain=domain,
         aliases_json=body.aliases,
         notes=body.notes,
     )
