@@ -13,6 +13,43 @@ type Plan = {
   limits_json: Record<string, unknown>;
 };
 
+type UsageMetric = { used: number; limit: number };
+
+const METRIC_LABELS: Record<string, string> = {
+  content_generation_runs: "內容生成",
+  claim_verification_runs: "Claim 驗證",
+  gsc_rows: "GSC 資料列",
+  serp_snapshots: "SERP 快照",
+  ai_probe_runs: "AI 探測",
+  report_exports: "報告匯出",
+  knowledge_sources: "知識來源",
+  knowledge_embedding: "知識嵌入",
+};
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const pct = Math.min(100, Math.round((used / limit) * 100));
+  const color = pct > 80 ? "var(--danger)" : pct > 50 ? "var(--warning)" : "var(--success)";
+  return (
+    <div style={{ marginBottom: "0.6rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", marginBottom: "0.2rem" }}>
+        <span>{label}</span>
+        <span style={{ color: "var(--muted)" }}>{used.toLocaleString()} / {limit.toLocaleString()}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
+        <div
+          style={{
+            height: "100%",
+            width: `${pct}%`,
+            background: color,
+            borderRadius: 3,
+            transition: "width 0.3s",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function BillingPage() {
   const params = useParams<{ workspaceId: string }>();
   const client = getApiClient(params.workspaceId);
@@ -83,9 +120,21 @@ export default function BillingPage() {
       {usage ? (
         <section className="card" style={{ marginBottom: "1.5rem" }}>
           <h3>本月用量</h3>
-          <pre style={{ fontSize: "0.85rem", overflow: "auto" }}>
-            {JSON.stringify(usage.metrics ?? {}, null, 2)}
-          </pre>
+          {(() => {
+            const metrics = (usage.metrics ?? {}) as Record<string, UsageMetric>;
+            const entries = Object.entries(metrics);
+            if (entries.length === 0) {
+              return <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>尚無用量資料</p>;
+            }
+            return entries.map(([key, val]) => (
+              <UsageBar
+                key={key}
+                label={METRIC_LABELS[key] ?? key}
+                used={val.used ?? 0}
+                limit={val.limit ?? 1}
+              />
+            ));
+          })()}
         </section>
       ) : null}
 
