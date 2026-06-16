@@ -98,6 +98,20 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/ai-visibility/probe-sets?site_id=${siteId}`);
   }
 
+  createProbeSet(body: {
+    site_id: string;
+    name: string;
+    prompts_json?: string[];
+    surfaces_json?: string[];
+    schedule?: string | null;
+    active?: boolean;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/ai-visibility/probe-sets?site_id=${body.site_id}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   listCitations(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/ai-visibility/citations?site_id=${siteId}`);
   }
@@ -111,8 +125,38 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/ai-visibility/brand-entities?site_id=${siteId}`);
   }
 
+  createBrandEntity(body: {
+    site_id: string;
+    canonical_name: string;
+    entity_type?: string;
+    aliases_json?: string[];
+    description?: string | null;
+    official_profiles_json?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/ai-visibility/brand-entities?site_id=${body.site_id}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   listSerpoRecords(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/ai-visibility/serpo-records?site_id=${siteId}`);
+  }
+
+  createSerpoRecord(body: {
+    site_id: string;
+    brand_query: string;
+    keyword?: string;
+    first_page_positive_count?: number;
+    first_page_neutral_count?: number;
+    first_page_negative_count?: number;
+    first_page_wrong_info_count?: number;
+    recommended_actions_json?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/ai-visibility/serpo-records?site_id=${body.site_id}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   }
 
   listTopicClusters(siteId: string): Promise<Array<Record<string, unknown>>> {
@@ -467,8 +511,65 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/strategy/delivery-commitments?site_id=${siteId}`);
   }
 
+  createDeliveryCommitment(body: {
+    site_id: string;
+    period?: string;
+    new_content_target?: number;
+    refresh_target?: number;
+    faq_schema_target?: number;
+    technical_fix_target?: number;
+    report_target?: number;
+    effective_from: string;
+    effective_to?: string | null;
+    notes?: string | null;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/strategy/delivery-commitments?site_id=${body.site_id}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  listCompetitors(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/competitors?site_id=${siteId}`);
+  }
+
+  createCompetitor(body: {
+    site_id: string;
+    name: string;
+    domain: string;
+    aliases?: string[];
+    notes?: string | null;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/competitors?site_id=${body.site_id}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  deleteCompetitor(competitorId: string): Promise<{ status: string }> {
+    return request(this.options, `/api/v1/competitors/${competitorId}`, {
+      method: "DELETE",
+    });
+  }
+
   getBrandProfile(siteId: string): Promise<Record<string, unknown> | null> {
     return request(this.options, `/api/v1/knowledge/brand-profile?site_id=${siteId}`);
+  }
+
+  upsertBrandProfile(body: {
+    site_id?: string;
+    canonical_brand_name: string;
+    brand_voice_json?: Record<string, unknown>;
+    positioning_json?: Record<string, unknown>;
+    target_markets_json?: string[];
+    buyer_personas_json?: string[];
+    compliance_policy_json?: Record<string, unknown>;
+    default_review_policy?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/knowledge/brand-profile`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   }
 
   listKnowledgeSources(siteId: string): Promise<Array<Record<string, unknown>>> {
@@ -479,9 +580,63 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/execution/jobs?site_id=${siteId}`);
   }
 
+  createExecutionJob(body: {
+    site_id: string;
+    job_type: string;
+    decision_id?: string;
+    opportunity_id?: string;
+    executor_type?: string;
+    input_json?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/execution/jobs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   listGenerationRuns(siteId: string, status?: string): Promise<Array<Record<string, unknown>>> {
     const q = status ? `&status=${encodeURIComponent(status)}` : "";
     return request(this.options, `/api/v1/content/generation-runs?site_id=${siteId}${q}`);
+  }
+
+  buildSourcePack(body: {
+    site_id: string;
+    opportunity_id?: string;
+    execution_job_id?: string;
+    market?: string;
+    language?: string;
+    brief_type?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/source-packs/build`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  buildContentBrief(body: {
+    site_id: string;
+    opportunity_id: string;
+    source_pack_id: string;
+    decision_id?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/briefs/build`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  createGenerationRun(body: {
+    site_id: string;
+    execution_job_id: string;
+    content_brief_id: string;
+    generation_mode?: string;
+    review_level?: string;
+    auto_compile?: boolean;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/generation-runs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   }
 
   approveGenerationRun(runId: string, rationale?: string, override = false): Promise<Record<string, unknown>> {
@@ -537,6 +692,13 @@ export class ExposureFlowClient {
 
   listRoadmaps(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/roadmaps?site_id=${siteId}`);
+  }
+
+  buildRoadmap(siteId: string, body?: { name?: string; description?: string }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/roadmaps/build?site_id=${siteId}`, {
+      method: "POST",
+      body: JSON.stringify({ site_id: siteId, ...body }),
+    });
   }
 
   listReports(siteId?: string, reportType?: string): Promise<Array<Record<string, unknown>>> {

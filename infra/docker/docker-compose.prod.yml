@@ -36,9 +36,8 @@ services:
     restart: unless-stopped
 
   worker:
-    build:
-      context: ../..
-      dockerfile: apps/api/Dockerfile
+    image: docker-api:latest
+    pull_policy: never
     command: celery -A exposureflow_api.jobs.celery_app worker --loglevel=info --concurrency=1
     env_file: .env
     depends_on:

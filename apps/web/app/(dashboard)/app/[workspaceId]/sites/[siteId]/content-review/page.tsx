@@ -87,6 +87,89 @@ export default function ContentReviewPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [panel, setPanel] = useState<ActivePanel>(null);
   const [changesNote, setChangesNote] = useState("");
+  // ---- Content generation workflow ----
+  const [approvedCandidates, setApprovedCandidates] = useState<Array<{ id: string; action_type: string; opportunity_id: string; keyword?: string }>>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState("");
+  const [workflowStep, setWorkflowStep] = useState<"idle" | "building_source_pack" | "building_brief" | "creating_job" | "creating_run">("idle");
+  const [sourcePackId, setSourcePackId] = useState("");
+  const [briefId, setBriefId] = useState("");
+  const [executionJobId, setExecutionJobId] = useState("");
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
+
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+
+  const loadApprovedCandidates = useCallback(async () => {
+    try {
+      const rows = await client.listCandidates(siteId, "approved");
+      setApprovedCandidates(rows as Array<{ id: string; action_type: string; opportunity_id: string; keyword?: string }>);
+      setCandidatesError(null);
+    } catch (err) {
+      setCandidatesError(err instanceof Error ? err.message : "載入候選項目失敗");
+    }
+  }, [client, siteId]);
+
+  useEffect(() => { loadApprovedCandidates(); }, [loadApprovedCandidates]);
+
+  async function runWorkflow() {
+    if (!selectedCandidateId) { setWorkflowError("請先選擇已核准的候選項目"); return; }
+    const candidate = approvedCandidates.find(c => c.id === selectedCandidateId);
+    if (!candidate) { setWorkflowError("找不到該候選項目"); return; }
+    setWorkflowError(null);
+    setWorkflowSuccess(null);
+
+    try {
+      // Step 1: Build Source Pack
+      setWorkflowStep("building_source_pack");
+      const sp = await client.buildSourcePack({
+        site_id: siteId,
+        opportunity_id: candidate.opportunity_id,
+        market: "tw",
+        language: "zh-TW",
+      });
+      setSourcePackId(sp.id as string);
+
+      // Step 2: Build Content Brief
+      setWorkflowStep("building_brief");
+      const brief = await client.buildContentBrief({
+        site_id: siteId,
+        opportunity_id: candidate.opportunity_id,
+        source_pack_id: sp.id as string,
+      });
+      setBriefId(brief.id as string);
+
+      // Step 3: Create Execution Job
+      setWorkflowStep("creating_job");
+      const job = await client.createExecutionJob({
+        site_id: siteId,
+        job_type: "content_generation",
+        opportunity_id: candidate.opportunity_id,
+      });
+      setExecutionJobId(job.id as string);
+
+      // Step 4: Create Generation Run
+      setWorkflowStep("creating_run");
+      await client.createGenerationRun({
+        site_id: siteId,
+        execution_job_id: job.id as string,
+        content_brief_id: brief.id as string,
+        generation_mode: "grounded_template",
+        review_level: "editor_review",
+        auto_compile: true,
+      });
+
+      setWorkflowSuccess("內容生成已觸發！請稍候片刻後重新整理查看結果");
+      setWorkflowStep("idle");
+      setSelectedCandidateId("");
+      setSourcePackId("");
+      setBriefId("");
+      setExecutionJobId("");
+      await load();
+    } catch (err) {
+      setWorkflowError(err instanceof Error ? err.message : "工作流失敗");
+      setWorkflowStep("idle");
+    }
+  }
 
   const load = useCallback(async () => {
     if (!siteId) {
@@ -204,6 +287,65 @@ export default function ContentReviewPage() {
       {success ? (
         <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{success}</p>
       ) : null}
+
+      {/* Content generation workflow */}
+      {canReview && (
+        <div className="card" style={{ marginBottom: "1.5rem" }}>
+          <h2 style={{ fontSize: "1rem", marginTop: 0 }}>內容生成工作區</h2>
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: 0 }}>
+            從已核准的候選項目建立 Source Pack → Content Brief → Execution Job → 觸發 AI 生成
+          </p>
+          {workflowError ? <p style={{ color: "var(--danger)", fontSize: "0.85rem" }}>{workflowError}</p> : null}
+          {workflowSuccess ? <p style={{ color: "var(--success)", fontSize: "0.85rem" }}>{workflowSuccess}</p> : null}
+          {candidatesError ? <p style={{ color: "var(--warning)", fontSize: "0.85rem" }}>{candidatesError}</p> : null}
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "var(--muted)", marginBottom: "0.3rem" }}>
+                已核准候選項目
+              </label>
+              <select
+                value={selectedCandidateId}
+                onChange={(e) => setSelectedCandidateId(e.target.value)}
+                style={{ width: "100%" }}
+                disabled={workflowStep !== "idle"}
+              >
+                <option value="">— 選擇候選項目 —</option>
+                {approvedCandidates.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.keyword ?? c.action_type} ({c.action_type})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!selectedCandidateId || workflowStep !== "idle"}
+              onClick={runWorkflow}
+            >
+              {workflowStep === "idle"
+                ? "建立 Source Pack → 觸發生成"
+                : workflowStep === "building_source_pack"
+                  ? "建立 Source Pack…"
+                  : workflowStep === "building_brief"
+                    ? "建立 Content Brief…"
+                    : workflowStep === "creating_job"
+                      ? "建立 Execution Job…"
+                      : "觸發 Generation Run…"}
+            </button>
+            <button type="button" className="btn" onClick={loadApprovedCandidates} disabled={workflowStep !== "idle"}>
+              刷新候選
+            </button>
+          </div>
+          {sourcePackId && (
+            <div style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+              Source Pack: <code>{sourcePackId}</code>
+              {briefId && <> → Brief: <code>{briefId}</code></>}
+              {executionJobId && <> → Job: <code>{executionJobId}</code></>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filter & refresh */}
       <div className="form-row" style={{ marginBottom: "1rem" }}>
