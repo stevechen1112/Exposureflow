@@ -26,10 +26,19 @@ from exposureflow_api.strategy.schemas import (
     KeywordPyramidNodeCreate,
     KeywordPyramidNodeResponse,
     KeywordPyramidNodeUpdate,
+    KeywordScoreBatchRequest,
+    KeywordScoreBatchResponse,
+    KeywordScoreRequest,
+    KeywordScoreResponse,
+    KeywordScoreFactorResponse,
     PyramidTopicBridgeResponse,
     ProductServiceScopeCreate,
     ProductServiceScopeResponse,
     ProductServiceScopeUpdate,
+    SerpEnrichmentRequest,
+    SerpEnrichmentResponse,
+    SiteKeywordScoreRequest,
+    SiteKeywordScoreResponse,
     StrategyImpactApplyResponse,
     StrategyImpactPreviewResponse,
 )
@@ -427,3 +436,192 @@ async def cold_start_research(
     )
     await db.commit()
     return {"job_id": str(job_run.id), "status": "queued"}
+
+
+# ── Keyword Scoring & SERP Enrichment endpoints ──────────────────────────
+
+from exposureflow_api.strategy.keyword_scorer import (
+    KeywordScoreInput,
+    score_keyword,
+    score_keywords_batch,
+)
+from exposureflow_api.strategy.serp_enrichment_bridge import (
+    batch_enrich_site_keywords,
+    build_keyword_score_input,
+    score_site_keywords,
+)
+
+
+@router.post("/keyword-pyramid/score", response_model=KeywordScoreResponse)
+async def score_single_keyword(
+    body: KeywordScoreRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Score a single keyword using the five-factor exposure opportunity model."""
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, body.site_id)
+
+    inp = KeywordScoreInput(
+        keyword=body.keyword,
+        node_type=body.node_type,
+        intent=body.intent,
+        estimated_monthly_searches=body.estimated_monthly_searches,
+        volume_source=body.volume_source,
+        competitor_domain_count=body.competitor_domain_count,
+        avg_competitor_da=body.avg_competitor_da,
+        top10_has_strong_domains=body.top10_has_strong_domains,
+        serp_features_present=body.serp_features_present,
+        ai_overview_present=body.ai_overview_present,
+        ai_citation_signals=body.ai_citation_signals,
+        topic_cluster_id=body.topic_cluster_id,
+        topic_cluster_coverage=body.topic_cluster_coverage,
+        pillar_has_page=body.pillar_has_page,
+        gsc_impressions_28d=body.gsc_impressions_28d,
+        gsc_clicks_28d=body.gsc_clicks_28d,
+        gsc_avg_position=body.gsc_avg_position,
+        business_fit_status=body.business_fit_status,
+        is_approved=body.is_approved,
+    )
+    result = score_keyword(inp)
+    return KeywordScoreResponse(
+        keyword=result.keyword,
+        total_score=result.total_score,
+        factors=KeywordScoreFactorResponse(
+            volume_score=result.volume_score,
+            feasibility_score=result.feasibility_score,
+            serp_diversity_score=result.serp_diversity_score,
+            ai_citation_score=result.ai_citation_score,
+            topic_contribution_score=result.topic_contribution_score,
+        ),
+        priority_tier=result.priority_tier,
+        priority_label=result.priority_label,
+        evidence=result.evidence,
+    )
+
+
+@router.post("/keyword-pyramid/score-batch", response_model=KeywordScoreBatchResponse)
+async def score_keywords_batch_endpoint(
+    body: KeywordScoreBatchRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Score multiple keywords using the five-factor model."""
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, body.site_id)
+
+    inputs = [
+        KeywordScoreInput(
+            keyword=k.keyword,
+            node_type=k.node_type,
+            intent=k.intent,
+            estimated_monthly_searches=k.estimated_monthly_searches,
+            volume_source=k.volume_source,
+            competitor_domain_count=k.competitor_domain_count,
+            avg_competitor_da=k.avg_competitor_da,
+            top10_has_strong_domains=k.top10_has_strong_domains,
+            serp_features_present=k.serp_features_present,
+            ai_overview_present=k.ai_overview_present,
+            ai_citation_signals=k.ai_citation_signals,
+            topic_cluster_id=k.topic_cluster_id,
+            topic_cluster_coverage=k.topic_cluster_coverage,
+            pillar_has_page=k.pillar_has_page,
+            gsc_impressions_28d=k.gsc_impressions_28d,
+            gsc_clicks_28d=k.gsc_clicks_28d,
+            gsc_avg_position=k.gsc_avg_position,
+            business_fit_status=k.business_fit_status,
+            is_approved=k.is_approved,
+        )
+        for k in body.keywords
+    ]
+    results = score_keywords_batch(inputs)
+    return KeywordScoreBatchResponse(
+        results=[
+            KeywordScoreResponse(
+                keyword=r.keyword,
+                total_score=r.total_score,
+                factors=KeywordScoreFactorResponse(
+                    volume_score=r.volume_score,
+                    feasibility_score=r.feasibility_score,
+                    serp_diversity_score=r.serp_diversity_score,
+                    ai_citation_score=r.ai_citation_score,
+                    topic_contribution_score=r.topic_contribution_score,
+                ),
+                priority_tier=r.priority_tier,
+                priority_label=r.priority_label,
+                evidence=r.evidence,
+            )
+            for r in results
+        ],
+        scored_count=len(results),
+    )
+
+
+@router.post("/keyword-pyramid/enrich-from-serp", response_model=SerpEnrichmentResponse)
+async def enrich_keywords_from_serp(
+    body: SerpEnrichmentRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Enrich all in-scope keywords with SERP data (volume, competition, features)."""
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, body.site_id)
+
+    nodes = await batch_enrich_site_keywords(
+        db, workspace_id, body.site_id, only_in_scope=body.only_in_scope
+    )
+    await db.commit()
+
+    with_serp = sum(
+        1 for n in nodes
+        if (n.evidence_json or {}).get("enrichment", {}).get("serp_enrichment", {}).get("status") == "enriched"
+    )
+    return SerpEnrichmentResponse(
+        enriched_count=len(nodes),
+        total_keywords=len(nodes),
+        keywords_with_serp_data=with_serp,
+        keywords_without_serp_data=len(nodes) - with_serp,
+    )
+
+
+@router.post("/keyword-pyramid/score-site", response_model=SiteKeywordScoreResponse)
+async def score_site_keywords_endpoint(
+    body: SiteKeywordScoreRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("site:read")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Score all keywords for a site with automatic SERP enrichment."""
+    _user, _membership, workspace_id = ctx
+    await get_site_in_workspace(db, workspace_id, body.site_id)
+
+    results = await score_site_keywords(
+        db, workspace_id, body.site_id, only_in_scope=body.only_in_scope
+    )
+
+    p1 = sum(1 for r in results if r.priority_tier == "P1")
+    p2 = sum(1 for r in results if r.priority_tier == "P2")
+    p3 = sum(1 for r in results if r.priority_tier == "P3")
+
+    return SiteKeywordScoreResponse(
+        results=[
+            KeywordScoreResponse(
+                keyword=r.keyword,
+                total_score=r.total_score,
+                factors=KeywordScoreFactorResponse(
+                    volume_score=r.volume_score,
+                    feasibility_score=r.feasibility_score,
+                    serp_diversity_score=r.serp_diversity_score,
+                    ai_citation_score=r.ai_citation_score,
+                    topic_contribution_score=r.topic_contribution_score,
+                ),
+                priority_tier=r.priority_tier,
+                priority_label=r.priority_label,
+                evidence=r.evidence,
+            )
+            for r in results
+        ],
+        scored_count=len(results),
+        p1_count=p1,
+        p2_count=p2,
+        p3_count=p3,
+    )

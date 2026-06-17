@@ -299,3 +299,80 @@ class KeywordPyramidBulkImportResponse(BaseModel):
 class PyramidTopicBridgeResponse(BaseModel):
     linked: int
     skipped: int
+
+
+# ── Keyword Scoring & SERP Enrichment schemas ─────────────────────────────
+
+class KeywordScoreRequest(BaseModel):
+    site_id: UUID
+    keyword: str
+    node_type: str = "cluster"
+    intent: str | None = None
+    estimated_monthly_searches: int = 0
+    volume_source: str = "none"
+    competitor_domain_count: int = 0
+    avg_competitor_da: float = 0.0
+    top10_has_strong_domains: bool = False
+    serp_features_present: list[str] = Field(default_factory=list)
+    ai_overview_present: bool = False
+    ai_citation_signals: list[str] = Field(default_factory=list)
+    topic_cluster_id: str | None = None
+    topic_cluster_coverage: float = 0.0
+    pillar_has_page: bool = False
+    gsc_impressions_28d: int = 0
+    gsc_clicks_28d: int = 0
+    gsc_avg_position: float = 99.0
+    business_fit_status: str = "needs_review"
+    is_approved: bool = False
+
+
+class KeywordScoreFactorResponse(BaseModel):
+    volume_score: float
+    feasibility_score: float
+    serp_diversity_score: float
+    ai_citation_score: float
+    topic_contribution_score: float
+
+
+class KeywordScoreResponse(BaseModel):
+    keyword: str
+    total_score: float
+    factors: KeywordScoreFactorResponse
+    priority_tier: str
+    priority_label: str
+    evidence: dict
+
+
+class KeywordScoreBatchRequest(BaseModel):
+    site_id: UUID
+    keywords: list[KeywordScoreRequest] = Field(default_factory=list)
+
+
+class KeywordScoreBatchResponse(BaseModel):
+    results: list[KeywordScoreResponse]
+    scored_count: int
+
+
+class SerpEnrichmentRequest(BaseModel):
+    site_id: UUID
+    only_in_scope: bool = True
+
+
+class SerpEnrichmentResponse(BaseModel):
+    enriched_count: int
+    total_keywords: int
+    keywords_with_serp_data: int
+    keywords_without_serp_data: int
+
+
+class SiteKeywordScoreRequest(BaseModel):
+    site_id: UUID
+    only_in_scope: bool = True
+
+
+class SiteKeywordScoreResponse(BaseModel):
+    results: list[KeywordScoreResponse]
+    scored_count: int
+    p1_count: int
+    p2_count: int
+    p3_count: int
