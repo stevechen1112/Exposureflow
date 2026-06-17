@@ -98,6 +98,13 @@ export default function ContentReviewPage() {
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
 
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const [pipelineBusy, setPipelineBusy] = useState<string | null>(null);
+  const [pipelineResult, setPipelineResult] = useState<{
+    run_id: string;
+    pipeline_status: string;
+    seo_score: number;
+    agent_decisions: Array<Record<string, unknown>>;
+  } | null>(null);
 
   const loadApprovedCandidates = useCallback(async () => {
     try {
@@ -229,6 +236,35 @@ export default function ContentReviewPage() {
     } finally {
       setBusy(null);
     }
+  }
+
+  async function runPipeline(runId: string) {
+    setPipelineBusy(runId);
+    setPipelineResult(null);
+    setError(null);
+    try {
+      const result = await client.runGenerationPipeline(runId);
+      setPipelineResult(result as typeof pipelineResult);
+      setSuccess("Pipeline 執行完成！");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Pipeline 執行失敗");
+    } finally {
+      setPipelineBusy(null);
+    }
+  }
+
+  function seoScoreBadge(score: number) {
+    const color = score >= 85 ? "#15803d" : score >= 60 ? "#c2410c" : "#b91c1c";
+    const bg = score >= 85 ? "rgba(22,163,74,0.12)" : score >= 60 ? "rgba(234,88,12,0.12)" : "rgba(220,38,38,0.1)";
+    return (
+      <span style={{
+        display: "inline-block", padding: "0.15rem 0.5rem", borderRadius: 999,
+        fontSize: "0.85rem", fontWeight: 700, background: bg, color,
+      }}>
+        {score}/100
+      </span>
+    );
   }
 
   const statusOptions = [
@@ -429,6 +465,17 @@ export default function ContentReviewPage() {
                       >
                         {panel?.type === "preview" && panel.run.id === run.id ? "收起" : "預覽"}
                       </button>
+                      {run.status === "draft" && canReview && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", background: "#7c3aed" }}
+                          disabled={pipelineBusy === run.id}
+                          onClick={() => runPipeline(run.id)}
+                        >
+                          {pipelineBusy === run.id ? "執行中…" : "🔬 Pipeline"}
+                        </button>
+                      )}
                       {isReviewable(run.status) && canReview && (
                         <>
                           <button
@@ -549,37 +596,51 @@ export default function ContentReviewPage() {
         </div>
       )}
 
-      {/* Inline request-changes panel */}
-      {panel?.type === "changes" && (
-        <div className="card" style={{ marginTop: "1.5rem" }}>
-          <h2 style={{ margin: "0 0 1rem", fontSize: "1rem" }}>
-            退件修改 — {fmtTime(panel.run.created_at)}
-          </h2>
-          <label
-            style={{ display: "block", color: "var(--muted)", fontSize: "0.85rem", marginBottom: "0.5rem" }}
-          >
-            修改說明（必填）
-          </label>
-          <textarea
-            value={changesNote}
-            onChange={(e) => setChangesNote(e.target.value)}
-            rows={4}
-            style={{ width: "100%", resize: "vertical" }}
-            placeholder="請說明需要修改的內容或原因…"
-          />
-          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={busy === panel.run.id || !changesNote.trim()}
-              onClick={() => requestChanges(panel.run.id)}
-            >
-              送出退件
-            </button>
-            <button type="button" className="btn" onClick={() => setPanel(null)}>
-              取消
-            </button>
+      {/* Pipeline result panel */}
+      {pipelineResult && (
+        <div className="card" style={{ marginTop: "1.5rem", border: "1px solid rgba(124, 58, 237, 0.4)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h2 style={{ fontSize: "1rem", margin: 0 }}>
+              🔬 Pipeline 結果 — {seoScoreBadge(pipelineResult.seo_score)}
+            </h2>
+            <button type="button" className="btn btn-ghost" onClick={() => setPipelineResult(null)}>收起</button>
           </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.5rem", marginBottom: "1rem" }}>
+            {[
+              { label: "Pipeline 狀態", value: pipelineResult.pipeline_status },
+              { label: "SEO 分數", value: `${pipelineResult.seo_score}/100` },
+              { label: "Agent 決策數", value: pipelineResult.agent_decisions.length },
+            ].map(item => (
+              <div key={item.label} style={{ padding: "0.5rem", borderRadius: 8, background: "var(--surface-1)", border: "1px solid var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>{item.label}</div>
+                <div style={{ fontSize: "1rem", fontWeight: 600 }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+          {pipelineResult.agent_decisions.length > 0 && (
+            <details>
+              <summary style={{ cursor: "pointer", fontSize: "0.85rem", color: "var(--muted)" }}>
+                Agent 決策記錄（{pipelineResult.agent_decisions.length} 步）
+              </summary>
+              <div className="table-wrap" style={{ marginTop: "0.5rem", maxHeight: 300, overflowY: "auto" }}>
+                <table style={{ fontSize: "0.8rem" }}>
+                  <thead>
+                    <tr><th>Agent</th><th>決策</th><th>原因</th><th>時間</th></tr>
+                  </thead>
+                  <tbody>
+                    {pipelineResult.agent_decisions.map((d, i) => (
+                      <tr key={i}>
+                        <td><code>{String(d.agent ?? "")}</code></td>
+                        <td>{String(d.decision ?? "")}</td>
+                        <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis" }}>{String(d.reason ?? "")}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{String(d.timestamp ?? "").slice(11, 19)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
         </div>
       )}
     </>
