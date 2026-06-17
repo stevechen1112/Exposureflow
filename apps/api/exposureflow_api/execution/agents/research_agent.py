@@ -19,7 +19,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from loguru import logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 from exposureflow_api.config import settings
 

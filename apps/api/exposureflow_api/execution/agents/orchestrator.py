@@ -14,7 +14,6 @@ Quality gate: SEO score >= 85 to pass, max 3 retries.
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -22,7 +21,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from exposureflow_api.common.audit import record_audit
 from exposureflow_api.content.service import (
     get_brief,
     get_generation_run,
@@ -93,10 +91,10 @@ async def _run_research_stage(
     """Stage 1: Research Agent — SERP analysis + competitor depth."""
     _record_decision(state, "research_agent", "start", f"Researching keyword: {state.keyword}")
 
-    # Collect SERP data from source pack facts
+    # Collect SERP data from source pack refs
     serp_slots: list[dict] = []
-    for fact in pack.facts or []:
-        evidence = fact.get("evidence_json", {}) or {}
+    for ref in pack.source_refs_json or []:
+        evidence = ref.get("evidence_json", {}) or {}
         serp_data = evidence.get("serp_enrichment", {}) or {}
         if serp_data.get("slots"):
             serp_slots.extend(serp_data["slots"])
@@ -156,8 +154,8 @@ def _run_writing_stage(
     )
 
     state.draft_markdown = result.markdown
-    state.meta_title = brief.title or f"{state.keyword} — 完整指南"
-    state.meta_description = brief.description or ""
+    state.meta_title = brief.brief_json.get("title_hint") or f"{state.keyword} — 完整指南"
+    state.meta_description = brief.brief_json.get("description") or ""
     state.pipeline_status = "draft"
     _record_decision(
         state, "writing_agent", "complete",

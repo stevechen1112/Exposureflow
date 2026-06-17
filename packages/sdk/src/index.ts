@@ -818,6 +818,149 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/notifications/${notificationId}/read`, { method: "POST" });
   }
 
+  // ── Keyword Scoring & SERP Enrichment ──────────────────────────────────
+
+  scoreKeyword(body: {
+    site_id: string;
+    keyword: string;
+    node_type?: string;
+    intent?: string | null;
+    estimated_monthly_searches?: number;
+    volume_source?: string;
+    competitor_domain_count?: number;
+    avg_competitor_da?: number;
+    top10_has_strong_domains?: boolean;
+    serp_features_present?: string[];
+    ai_overview_present?: boolean;
+    ai_citation_signals?: string[];
+    topic_cluster_id?: string | null;
+    topic_cluster_coverage?: number;
+    pillar_has_page?: boolean;
+    gsc_impressions_28d?: number;
+    gsc_clicks_28d?: number;
+    gsc_avg_position?: number;
+    business_fit_status?: string;
+    is_approved?: boolean;
+  }): Promise<KeywordScoreResult> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/score`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  scoreKeywordsBatch(body: {
+    site_id: string;
+    keywords: Array<{
+      keyword: string;
+      node_type?: string;
+      intent?: string | null;
+      estimated_monthly_searches?: number;
+      volume_source?: string;
+      competitor_domain_count?: number;
+      avg_competitor_da?: number;
+      top10_has_strong_domains?: boolean;
+      serp_features_present?: string[];
+      ai_overview_present?: boolean;
+      ai_citation_signals?: string[];
+      topic_cluster_id?: string | null;
+      topic_cluster_coverage?: number;
+      pillar_has_page?: boolean;
+      gsc_impressions_28d?: number;
+      gsc_clicks_28d?: number;
+      gsc_avg_position?: number;
+      business_fit_status?: string;
+      is_approved?: boolean;
+    }>;
+  }): Promise<{ results: KeywordScoreResult[]; scored_count: number }> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/score-batch`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  enrichKeywordsFromSerp(body: {
+    site_id: string;
+    only_in_scope?: boolean;
+  }): Promise<{
+    enriched_count: number;
+    total_keywords: number;
+    keywords_with_serp_data: number;
+    keywords_without_serp_data: number;
+  }> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/enrich-from-serp`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  scoreSiteKeywords(body: {
+    site_id: string;
+    only_in_scope?: boolean;
+  }): Promise<{
+    results: KeywordScoreResult[];
+    scored_count: number;
+    p1_count: number;
+    p2_count: number;
+    p3_count: number;
+  }> {
+    return request(this.options, `/api/v1/strategy/keyword-pyramid/score-site`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  // ── Content Pipeline ────────────────────────────────────────────────────
+
+  runGenerationPipeline(runId: string): Promise<{
+    run_id: string;
+    pipeline_status: string;
+    seo_score: number;
+    agent_decisions: Array<Record<string, unknown>>;
+  }> {
+    return request(this.options, `/api/v1/content/generation-runs/${runId}/pipeline`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+  }
+
+  getGenerationRunDetail(runId: string): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/generation-runs/${runId}`);
+  }
+
+  // ── Analytics ───────────────────────────────────────────────────────────
+
+  getArticlePerformance(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/analytics/article-performance?site_id=${siteId}`);
+  }
+
+  detectCannibalization(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/analytics/cannibalization?site_id=${siteId}`);
+  }
+
+  getRefreshRecommendations(siteId: string): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/analytics/refresh-recommendations?site_id=${siteId}`);
+  }
+}
+
+// ── Shared response types ──────────────────────────────────────────────────
+
+export interface KeywordScoreFactor {
+  volume_score: number;
+  feasibility_score: number;
+  serp_diversity_score: number;
+  ai_citation_score: number;
+  topic_contribution_score: number;
+}
+
+export interface KeywordScoreResult {
+  keyword: string;
+  total_score: number;
+  factors: KeywordScoreFactor;
+  priority_tier: string;
+  priority_label: string;
+  evidence: Record<string, unknown>;
+}
+
   markAllNotificationsRead(): Promise<{ status: string }> {
     return request(this.options, `/api/v1/notifications/read-all`, { method: "POST" });
   }

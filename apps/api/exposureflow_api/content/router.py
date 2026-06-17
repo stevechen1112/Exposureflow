@@ -21,6 +21,7 @@ from exposureflow_api.content.schemas import (
 from exposureflow_api.database import get_db
 from exposureflow_api.execution.brief_builder import build_content_brief
 from exposureflow_api.execution.source_pack import build_source_pack
+from exposureflow_api.execution.agents.orchestrator import run_generation_pipeline
 from exposureflow_api.exposure.deps import get_site_in_workspace
 
 router = APIRouter(prefix="/api/v1/content", tags=["content"])
@@ -238,6 +239,37 @@ async def publish_wordpress(
     )
     await db.commit()
     return result
+
+
+@router.post("/generation-runs/{run_id}/pipeline")
+async def run_pipeline(
+    run_id: UUID,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("job:write")),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Run the full 7-agent content generation pipeline for a generation run."""
+    _user, _membership, workspace_id = ctx
+    run = await content_service.get_generation_run(db, workspace_id, run_id)
+    brief = await content_service.get_brief(db, workspace_id, run.content_brief_id)
+
+    # Extract keyword from brief
+    keyword = brief.brief_json.get("title_hint") or brief.brief_type or ""
+
+    state = await run_generation_pipeline(
+        db,
+        workspace_id,
+        run_id,
+        keyword=keyword,
+        node_type=brief.brief_json.get("node_type", "cluster"),
+        intent=brief.brief_json.get("intent"),
+    )
+    await db.commit()
+    return {
+        "run_id": str(run_id),
+        "pipeline_status": state.pipeline_status,
+        "seo_score": state.best_seo_score,
+        "agent_decisions": state.agent_decisions,
+    }
 
 
 @router.get("/generation-runs/{run_id}/claims", response_model=list[ContentClaimResponse])

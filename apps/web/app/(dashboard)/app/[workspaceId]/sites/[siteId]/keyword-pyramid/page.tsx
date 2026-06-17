@@ -348,6 +348,17 @@ export default function KeywordPyramidPage() {
   const [scopes, setScopes] = useState<Array<{ id: string; name: string }>>([]);
   const [coldStartSeeds, setColdStartSeeds] = useState("");
   const [coldStartBusy, setColdStartBusy] = useState(false);
+  const [scoringBusy, setScoringBusy] = useState(false);
+  const [enrichBusy, setEnrichBusy] = useState(false);
+  const [scoreResults, setScoreResults] = useState<Array<{
+    keyword: string;
+    total_score: number;
+    factors: { volume_score: number; feasibility_score: number; serp_diversity_score: number; ai_citation_score: number; topic_contribution_score: number };
+    priority_tier: string;
+    priority_label: string;
+    evidence: Record<string, unknown>;
+  }> | null>(null);
+  const [showScoring, setShowScoring] = useState(false);
   const editorRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
@@ -634,6 +645,78 @@ export default function KeywordPyramidPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function handleEnrichFromSerp() {
+    if (!siteId) return;
+    setEnrichBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const result = await client.enrichKeywordsFromSerp({ site_id: siteId, only_in_scope: true });
+      setMessage(
+        `SERP 富化完成：${result.keywords_with_serp_data}/${result.total_keywords} 個關鍵字有 SERP 數據`,
+      );
+      await load();
+    } catch (err) {
+      setError(parseApiError(err instanceof Error ? err.message : "SERP 富化失敗").friendly);
+    } finally {
+      setEnrichBusy(false);
+    }
+  }
+
+  async function handleScoreSite() {
+    if (!siteId) return;
+    setScoringBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const result = await client.scoreSiteKeywords({ site_id: siteId, only_in_scope: true });
+      setScoreResults(result.results);
+      setShowScoring(true);
+      setMessage(
+        `評分完成：${result.scored_count} 個關鍵字 — P1: ${result.p1_count} / P2: ${result.p2_count} / P3: ${result.p3_count}`,
+      );
+    } catch (err) {
+      setError(parseApiError(err instanceof Error ? err.message : "評分失敗").friendly);
+    } finally {
+      setScoringBusy(false);
+    }
+  }
+
+  function priorityBadge(tier: string) {
+    const colors: Record<string, { bg: string; color: string }> = {
+      P1: { bg: "rgba(22, 163, 74, 0.12)", color: "#15803d" },
+      P2: { bg: "rgba(234, 88, 12, 0.12)", color: "#c2410c" },
+      P3: { bg: "rgba(100, 116, 139, 0.12)", color: "#475569" },
+    };
+    const c = colors[tier] ?? colors.P3;
+    return (
+      <span style={{
+        display: "inline-block", padding: "0.1rem 0.4rem", borderRadius: "999px",
+        fontSize: "0.75rem", fontWeight: 700, background: c.bg, color: c.color,
+      }}>
+        {tier}
+      </span>
+    );
+  }
+
+  function scoreBar(score: number, maxScore = 100) {
+    const pct = Math.min(100, Math.max(0, (score / maxScore) * 100));
+    const color = pct >= 60 ? "#15803d" : pct >= 30 ? "#c2410c" : "#94a3b8";
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+        <div style={{
+          flex: 1, height: 6, borderRadius: 3, background: "var(--border)",
+          overflow: "hidden",
+        }}>
+          <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 3 }} />
+        </div>
+        <span style={{ fontSize: "0.8rem", fontWeight: 600, color, minWidth: 40, textAlign: "right" }}>
+          {score.toFixed(1)}
+        </span>
+      </div>
+    );
   }
 
   return (
@@ -934,6 +1017,83 @@ export default function KeywordPyramidPage() {
           >
             同步 Topic Graph
           </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={enrichBusy}
+            onClick={handleEnrichFromSerp}
+            title="從 SERP 快照提取搜尋量、競爭度、版位數據"
+          >
+            {enrichBusy ? "富化中…" : "SERP 數據富化"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={scoringBusy}
+            onClick={handleScoreSite}
+            title="以五因子模型評分所有正式關鍵字"
+          >
+            {scoringBusy ? "評分中…" : "🔍 曝光機會評分"}
+          </button>
+        </div>
+      ) : null}
+
+      {showScoring && scoreResults && scoreResults.length > 0 ? (
+        <div className="card" style={{ marginBottom: "1.5rem", border: "1px solid rgba(37, 99, 235, 0.3)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <h2 style={{ fontSize: "1.05rem", margin: 0 }}>
+              📊 曝光機會評分（五因子模型）
+            </h2>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowScoring(false)}>
+              收起
+            </button>
+          </div>
+          <p style={{ color: "var(--muted)", fontSize: "0.85rem", margin: "0 0 1rem" }}>
+            分數 = ⁵√(搜尋量 × 排名可行性 × SERP版位多樣性 × AI引用潛力 × 主題貢獻)。
+            P1 = 立即執行，P2 = 本季，P3 = 長期佈局。
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "0.5rem", marginBottom: "1rem" }}>
+            {[
+              { label: "P1 立即執行", count: scoreResults.filter(r => r.priority_tier === "P1").length, color: "#15803d" },
+              { label: "P2 本季", count: scoreResults.filter(r => r.priority_tier === "P2").length, color: "#c2410c" },
+              { label: "P3 長期", count: scoreResults.filter(r => r.priority_tier === "P3").length, color: "#475569" },
+            ].map(item => (
+              <div key={item.label} style={{ padding: "0.5rem", borderRadius: 8, background: "var(--surface-1)", border: "1px solid var(--border)", textAlign: "center" }}>
+                <div style={{ fontSize: "1.3rem", fontWeight: 700, color: item.color }}>{item.count}</div>
+                <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="table-wrap" style={{ maxHeight: 400, overflowY: "auto" }}>
+            <table style={{ fontSize: "0.85rem" }}>
+              <thead>
+                <tr>
+                  <th>優先</th>
+                  <th>關鍵字</th>
+                  <th>總分</th>
+                  <th>搜尋量</th>
+                  <th>可行性</th>
+                  <th>版位</th>
+                  <th>AI引用</th>
+                  <th>主題貢獻</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scoreResults.map(r => (
+                  <tr key={r.keyword}>
+                    <td>{priorityBadge(r.priority_tier)}</td>
+                    <td><strong>{r.keyword}</strong></td>
+                    <td>{scoreBar(r.total_score)}</td>
+                    <td style={{ fontSize: "0.8rem" }}>{(r.factors.volume_score * 100).toFixed(0)}%</td>
+                    <td style={{ fontSize: "0.8rem" }}>{(r.factors.feasibility_score * 100).toFixed(0)}%</td>
+                    <td style={{ fontSize: "0.8rem" }}>{(r.factors.serp_diversity_score * 100).toFixed(0)}%</td>
+                    <td style={{ fontSize: "0.8rem" }}>{(r.factors.ai_citation_score * 100).toFixed(0)}%</td>
+                    <td style={{ fontSize: "0.8rem" }}>{(r.factors.topic_contribution_score * 100).toFixed(0)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
 
