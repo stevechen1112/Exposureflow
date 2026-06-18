@@ -104,6 +104,7 @@ export default function AiVisibilityPage() {
   const [activeTab, setActiveTab] = useState<"probeSets" | "runs" | "citations">("probeSets");
 
   const load = useCallback(async () => {
+    if (!siteId) return;
     setLoading(true);
     try {
       const [d, ps, runsData, c] = await Promise.all([
@@ -129,6 +130,7 @@ export default function AiVisibilityPage() {
   }, [load]);
 
   async function submitProbeRun() {
+    if (!siteId) return;
     if (!probeForm.probe_set_id || !probeForm.prompt.trim() || !probeForm.answer_text.trim()) {
       setError("請填寫必要欄位：Probe Set、Prompt、AI 回答");
       return;
@@ -156,6 +158,7 @@ export default function AiVisibilityPage() {
   }
 
   async function submitProbeSet() {
+    if (!siteId) return;
     if (!probeSetForm.name.trim()) {
       setError("請填寫 Probe Set 名稱");
       return;

@@ -128,6 +128,60 @@ async def trigger_tech_seo_crawl(
     return {"job_run_id": str(run.id), "status": run.status}
 
 
+@router.post("/indexability/sitemap-health")
+async def trigger_sitemap_health_check(
+    body: SyncTriggerRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("integration:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    run = await enqueue_job(
+        db,
+        workspace_id=workspace_id,
+        job_type="indexability.sitemap_health",
+        site_id=body.site_id,
+        input_json=body.input_json,
+    )
+    await db.commit()
+    return {"job_run_id": str(run.id), "status": run.status}
+
+
+@router.post("/indexability/published-noindex")
+async def trigger_published_noindex_check(
+    body: SyncTriggerRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("integration:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    run = await enqueue_job(
+        db,
+        workspace_id=workspace_id,
+        job_type="indexability.published_noindex",
+        site_id=body.site_id,
+        input_json=body.input_json,
+    )
+    await db.commit()
+    return {"job_run_id": str(run.id), "status": run.status}
+
+
+@router.post("/indexability/coverage-check")
+async def trigger_indexability_coverage_check(
+    body: SyncTriggerRequest,
+    ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("integration:write")),
+    db: AsyncSession = Depends(get_db),
+):
+    _user, _membership, workspace_id = ctx
+    run = await enqueue_job(
+        db,
+        workspace_id=workspace_id,
+        job_type="indexability.coverage_check",
+        site_id=body.site_id,
+        input_json=body.input_json,
+    )
+    await db.commit()
+    return {"job_run_id": str(run.id), "status": run.status}
+
+
 @router.get("/gsc/performance", response_model=list[GscRowResponse])
 async def query_gsc_performance(
     site_id: UUID,

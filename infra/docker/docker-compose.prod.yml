@@ -45,6 +45,16 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  beat:
+    image: docker-api:latest
+    pull_policy: never
+    command: celery -A exposureflow_api.jobs.celery_app beat --loglevel=info
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
   web:
     build:
       context: ../..

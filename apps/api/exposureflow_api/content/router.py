@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from exposureflow_api.auth.jwt import AuthContext
 from exposureflow_api.auth.permissions import require_permission
 from exposureflow_api.content import service as content_service
+from exposureflow_api.content.repository import pipeline_params_from_brief
 from exposureflow_api.content.schemas import (
     BriefBuildRequest,
     ContentBriefResponse,
@@ -13,6 +14,7 @@ from exposureflow_api.content.schemas import (
     GateResultResponse,
     GenerationRunCreate,
     GenerationRunResponse,
+    PublishGenerationRunRequest,
     RequestChangesRequest,
     ReviewActionRequest,
     SourcePackBuildRequest,
@@ -198,7 +200,7 @@ async def approve_generation_run(
         db,
         workspace_id,
         run_id,
-        actor_user_id=user.id,
+        actor_user_id=user.user_id,
         rationale=body.rationale,
         override=body.override,
     )
@@ -219,7 +221,7 @@ async def request_changes(
         db,
         workspace_id,
         run_id,
-        actor_user_id=user.id,
+        actor_user_id=user.user_id,
         notes=body.notes,
     )
     await db.commit()
@@ -228,14 +230,19 @@ async def request_changes(
 
 
 @router.post("/generation-runs/{run_id}/publish")
-async def publish_wordpress(
+async def publish_generation_run(
     run_id: UUID,
+    body: PublishGenerationRunRequest | None = None,
     ctx: tuple[AuthContext, object, UUID] = Depends(require_permission("job:write")),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     user, _membership, workspace_id = ctx
-    result = await content_service.publish_to_wordpress(
-        db, workspace_id, run_id, actor_user_id=user.id
+    result = await content_service.publish_generation_run(
+        db,
+        workspace_id,
+        run_id,
+        actor_user_id=user.user_id,
+        site_status=(body.site_status if body else "draft"),
     )
     await db.commit()
     return result
@@ -252,16 +259,14 @@ async def run_pipeline(
     run = await content_service.get_generation_run(db, workspace_id, run_id)
     brief = await content_service.get_brief(db, workspace_id, run.content_brief_id)
 
-    # Extract keyword from brief
-    keyword = brief.brief_json.get("title_hint") or brief.brief_type or ""
-
+    params = pipeline_params_from_brief(brief)
     state = await run_generation_pipeline(
         db,
         workspace_id,
         run_id,
-        keyword=keyword,
-        node_type=brief.brief_json.get("node_type", "cluster"),
-        intent=brief.brief_json.get("intent"),
+        keyword=params["keyword"] or "",
+        node_type=params["node_type"] or "cluster",
+        intent=params["intent"],
     )
     await db.commit()
     return {

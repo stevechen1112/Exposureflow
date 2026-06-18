@@ -66,9 +66,9 @@ class GenerationRunCreate(BaseModel):
     site_id: UUID
     execution_job_id: UUID
     content_brief_id: UUID
-    generation_mode: str = "grounded_template"
+    generation_mode: str = "grounded_llm"
     review_level: str = "editor_review"
-    auto_compile: bool = True
+    auto_compile: bool = False
 
 
 class ReviewActionRequest(BaseModel):
@@ -78,6 +78,10 @@ class ReviewActionRequest(BaseModel):
 
 class RequestChangesRequest(BaseModel):
     notes: str
+
+
+class PublishGenerationRunRequest(BaseModel):
+    site_status: str = "draft"
 
 
 class GenerationRunResponse(BaseModel):

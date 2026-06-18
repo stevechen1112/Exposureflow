@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.common.audit import record_audit
 from exposureflow_api.common.crypto import encrypt_secret, hash_api_key
+from exposureflow_api.integrations.credential_validation import validate_integration_payload
 from exposureflow_api.jobs.registry import JOB_DEFINITIONS
 from exposureflow_api.models import (
     Account,
@@ -439,6 +440,7 @@ async def store_integration_credential(
     credential_name: str = "default",
     actor_user_id: UUID | None = None,
 ) -> IntegrationCredential:
+    validate_integration_payload(provider, payload)
     credential = IntegrationCredential(
         workspace_id=workspace_id,
         site_id=site_id,

@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import re
+
 from exposureflow_api.topics.graph_builder import jaccard_similarity, tokenize
+
+_TOKEN_RE = re.compile(r"[\w\u4e00-\u9fff]+", re.UNICODE)
 
 
 @dataclass
@@ -21,7 +25,8 @@ def anchor_relevance(source_keyword: str, target_keyword: str) -> float:
 
 
 def _slugify(keyword: str) -> str:
-    return "-".join(tokenize(keyword))[:80] or "page"
+    tokens = [t.lower() for t in _TOKEN_RE.findall(keyword) if len(t) > 1]
+    return "-".join(tokens)[:80] or "page"
 
 
 def suggest_internal_links(

@@ -32,6 +32,7 @@ export default function SerpoPage() {
   });
 
   const load = useCallback(async () => {
+    if (!siteId) return;
     try {
       const data = await client.listSerpoRecords(siteId);
       setRecords(data as SerpoRecord[]);
@@ -44,6 +45,7 @@ export default function SerpoPage() {
   useEffect(() => { load(); }, [load]);
 
   async function submit() {
+    if (!siteId) return;
     if (!form.brand_query.trim()) { setError("請填寫品牌查詢詞"); return; }
     setSubmitting(true);
     try {

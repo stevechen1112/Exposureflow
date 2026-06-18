@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir /app/packages/connectors /app/packages/execution-
     && pip install --no-cache-dir .
 
 COPY infra/docker/scripts/api-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 8000
 ENTRYPOINT ["/entrypoint.sh"]

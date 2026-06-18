@@ -24,11 +24,12 @@ async def run_wordpress_publish_draft(db: AsyncSession, run: JobRun) -> None:
         )
         return
     try:
-        result = await content_service.publish_to_wordpress(
+        result = await content_service.publish_generation_run(
             db,
             run.workspace_id,
             UUID(str(run_id)),
             actor_user_id=UUID(str(actor_user_id)),
+            provider="wordpress",
         )
         await finalize_job_run(run, success=True, output=result)
     except Exception as exc:

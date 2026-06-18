@@ -27,6 +27,7 @@ export default function BrandPage() {
   });
 
   const load = useCallback(async () => {
+    if (!siteId) return;
     try {
       const data = await client.listBrandEntities(siteId);
       setEntities(data as BrandEntity[]);
@@ -39,6 +40,7 @@ export default function BrandPage() {
   useEffect(() => { load(); }, [load]);
 
   async function submit() {
+    if (!siteId) return;
     if (!form.canonical_name.trim()) { setError("請填寫品牌名稱"); return; }
     setSubmitting(true);
     try {

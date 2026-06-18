@@ -37,19 +37,27 @@ def check_rate_limit(*, key: str, limit: int, window_seconds: int = 60) -> None:
     redis_client = _get_redis_client()
     if redis_client is not None:
         bucket_key = f"rl:{key}:{window_seconds}"
-        pipe = redis_client.pipeline()
-        pipe.zremrangebyscore(bucket_key, 0, now - window_seconds)
-        pipe.zadd(bucket_key, {str(now): now})
-        pipe.zcard(bucket_key)
-        pipe.expire(bucket_key, window_seconds + 1)
-        _, _, count, _ = pipe.execute()
-        if int(count) > limit:
-            raise APIError(
-                code="RATE_LIMIT_EXCEEDED",
-                message="Too many requests. Please retry later.",
-                status_code=429,
-            )
-        return
+        try:
+            pipe = redis_client.pipeline()
+            member = f"{now}:{id(now)}"
+            pipe.zremrangebyscore(bucket_key, 0, now - window_seconds)
+            pipe.zadd(bucket_key, {member: now})
+            pipe.zcard(bucket_key)
+            pipe.expire(bucket_key, window_seconds + 1)
+            _, _, count, _ = pipe.execute()
+            if int(count) > limit:
+                raise APIError(
+                    code="RATE_LIMIT_EXCEEDED",
+                    message="Too many requests. Please retry later.",
+                    status_code=429,
+                )
+            return
+        except APIError:
+            raise
+        except Exception:
+            global _redis_instance, _redis_init_failed
+            _redis_instance = None
+            _redis_init_failed = True
 
     with _lock:
         timestamps = _memory_buckets[key]

@@ -42,8 +42,8 @@ export default function OutcomesPage() {
                 </td>
               </tr>
             ) : (
-              rows.map((r) => (
-                <tr key={String(r.decision_id)}>
+              rows.map((r, idx) => (
+                <tr key={String(r.id ?? `${r.decision_id}_${idx}`)}>
                   <td>{String(r.action_type ?? "")}</td>
                   <td>{String(r.keyword ?? "—")}</td>
                   <td>{Number(r.expected_exposure_impact ?? 0).toFixed(1)}</td>

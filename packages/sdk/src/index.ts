@@ -37,6 +37,23 @@ async function request<T>(options: ExposureFlowClientOptions, path: string, init
   return response.json() as Promise<T>;
 }
 
+export type KeywordScoreFactor = {
+  volume_score: number;
+  feasibility_score: number;
+  serp_diversity_score: number;
+  ai_citation_score: number;
+  topic_contribution_score: number;
+};
+
+export type KeywordScoreResult = {
+  keyword: string;
+  total_score: number;
+  factors: KeywordScoreFactor;
+  priority_tier: string;
+  priority_label: string;
+  evidence: Record<string, unknown>;
+};
+
 export class ExposureFlowClient {
   constructor(private readonly options: ExposureFlowClientOptions) {}
 
@@ -660,6 +677,59 @@ export class ExposureFlowClient {
     });
   }
 
+  publishGenerationRun(
+    runId: string,
+    options?: { site_status?: "draft" | "published" },
+  ): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/generation-runs/${runId}/publish`, {
+      method: "POST",
+      body: JSON.stringify({ site_status: options?.site_status ?? "draft" }),
+    });
+  }
+
+  // ---- Content Schedule ----
+
+  getContentSchedule(siteId: string): Promise<Record<string, unknown> | null> {
+    return request(this.options, `/api/v1/content/schedule/${siteId}`);
+  }
+
+  upsertContentSchedule(siteId: string, body: {
+    enabled?: boolean;
+    articles_per_week?: number;
+    priority_filter?: string;
+    schedule_days_json?: string[];
+    auto_approve_threshold?: number | null;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/schedule/${siteId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateContentSchedule(siteId: string, body: {
+    enabled?: boolean;
+    articles_per_week?: number;
+    priority_filter?: string;
+    schedule_days_json?: string[];
+    auto_approve_threshold?: number | null;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/content/schedule/${siteId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  }
+
+  batchGenerateContent(body: {
+    site_id: string;
+    count?: number;
+    priority_filter?: string;
+  }): Promise<{ triggered: number; skipped: number; run_ids: string[]; message: string }> {
+    return request(this.options, `/api/v1/content/schedule/batch-generate`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
   createKnowledgeSource(body: {
     site_id?: string;
     title: string;
@@ -802,6 +872,14 @@ export class ExposureFlowClient {
     return request(this.options, `/api/v1/agency/dashboard`);
   }
 
+  getConsultantInbox(options?: { siteId?: string; scope?: "workspace" | "account" }): Promise<Record<string, unknown>> {
+    const params = new URLSearchParams();
+    if (options?.siteId) params.set("site_id", options.siteId);
+    if (options?.scope) params.set("scope", options.scope);
+    const q = params.toString() ? `?${params.toString()}` : "";
+    return request(this.options, `/api/v1/consultant/inbox${q}`);
+  }
+
   updateWorkspaceBranding(body: Record<string, unknown>): Promise<Record<string, unknown>> {
     return request(this.options, `/api/v1/billing/branding`, {
       method: "PUT",
@@ -939,140 +1017,6 @@ export class ExposureFlowClient {
 
   getRefreshRecommendations(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/analytics/refresh-recommendations?site_id=${siteId}`);
-  }
-}
-
-// ── Shared response types ──────────────────────────────────────────────────
-
-export interface KeywordScoreFactor {
-  volume_score: number;
-  feasibility_score: number;
-  serp_diversity_score: number;
-  ai_citation_score: number;
-  topic_contribution_score: number;
-}
-
-export interface KeywordScoreResult {
-  keyword: string;
-  total_score: number;
-  factors: KeywordScoreFactor;
-  priority_tier: string;
-  priority_label: string;
-  evidence: Record<string, unknown>;
-}
-
-  markAllNotificationsRead(): Promise<{ status: string }> {
-    return request(this.options, `/api/v1/notifications/read-all`, { method: "POST" });
-  }
-
-  createSupportTicket(body: { subject: string; description: string; priority?: string }): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/support/tickets`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  listSupportTickets(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/support/tickets`);
-  }
-
-  getPublicStatus(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/status`);
-  }
-
-  internalListWorkspaces(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/workspaces`);
-  }
-
-  internalListAccounts(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/accounts`);
-  }
-
-  internalSearchUsers(email?: string): Promise<Array<Record<string, unknown>>> {
-    const q = email ? `?email=${encodeURIComponent(email)}` : "";
-    return request(this.options, `/api/v1/internal/users${q}`);
-  }
-
-  internalListJobs(params?: { workspace_id?: string; status?: string }): Promise<Array<Record<string, unknown>>> {
-    const search = new URLSearchParams();
-    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
-    if (params?.status) search.set("status", params.status);
-    const q = search.toString();
-    return request(this.options, `/api/v1/internal/jobs${q ? `?${q}` : ""}`);
-  }
-
-  internalListSyncStates(params?: { workspace_id?: string; failing_only?: boolean }): Promise<Array<Record<string, unknown>>> {
-    const search = new URLSearchParams();
-    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
-    if (params?.failing_only) search.set("failing_only", "true");
-    const q = search.toString();
-    return request(this.options, `/api/v1/internal/sync-states${q ? `?${q}` : ""}`);
-  }
-
-  internalListAuditLogs(params?: { workspace_id?: string; action_prefix?: string }): Promise<Array<Record<string, unknown>>> {
-    const search = new URLSearchParams();
-    if (params?.workspace_id) search.set("workspace_id", params.workspace_id);
-    if (params?.action_prefix) search.set("action_prefix", params.action_prefix);
-    const q = search.toString();
-    return request(this.options, `/api/v1/internal/audit-logs${q ? `?${q}` : ""}`);
-  }
-
-  internalUpdateFeatureFlags(workspaceId: string, featureFlags: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/internal/workspaces/${workspaceId}/feature-flags`, {
-      method: "PATCH",
-      body: JSON.stringify({ feature_flags: featureFlags }),
-    });
-  }
-
-  internalCsActivation(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/cs/activation`);
-  }
-
-  internalCsFunnel(): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/internal/cs/onboarding-funnel`);
-  }
-
-  internalIntegrationHealth(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/integration-health`);
-  }
-
-  internalProviderCosts(days = 30): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/provider-costs?days=${days}`);
-  }
-
-  internalListSupportTickets(workspaceId?: string): Promise<Array<Record<string, unknown>>> {
-    const q = workspaceId ? `?workspace_id=${workspaceId}` : "";
-    return request(this.options, `/api/v1/internal/support/tickets${q}`);
-  }
-
-  internalListStatusIncidents(): Promise<Array<Record<string, unknown>>> {
-    return request(this.options, `/api/v1/internal/status/incidents`);
-  }
-
-  internalCreateStatusIncident(body: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/internal/status/incidents`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  internalImpersonate(body: { target_user_id: string; workspace_id?: string; reason: string }): Promise<{ access_token: string }> {
-    return request(this.options, `/api/v1/internal/impersonate`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  }
-
-  getLaunchReadiness(): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/launch/readiness`);
-  }
-
-  internalLaunchChecklist(): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/internal/launch/checklist`);
-  }
-
-  internalBusinessMetrics(days = 30): Promise<Record<string, unknown>> {
-    return request(this.options, `/api/v1/internal/business-metrics?days=${days}`);
   }
 }
 

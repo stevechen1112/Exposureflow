@@ -35,6 +35,7 @@ export default function CompetitorsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!siteId) return;
     setLoading(true);
     try {
       const list = await client.listCompetitors(siteId);
@@ -52,6 +53,7 @@ export default function CompetitorsPage() {
   }, [load]);
 
   async function handleCreate() {
+    if (!siteId) return;
     if (!form.name.trim() || !form.domain.trim()) {
       setError("請填寫競爭對手名稱與 domain");
       return;

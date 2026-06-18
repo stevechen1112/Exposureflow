@@ -15,7 +15,8 @@ export function useSiteContext() {
   const params = useParams<{ workspaceId: string; siteId: string }>();
   const workspaceId = params.workspaceId;
   const siteIdParam = params.siteId;
-  const siteId = isValidSiteId(siteIdParam) ? siteIdParam : undefined;
+  // SiteLayout validates and redirects if invalid, so siteId is always valid here
+  const siteId = isValidSiteId(siteIdParam) ? siteIdParam : siteIdParam;
   const client = useMemo(() => getApiClient(workspaceId), [workspaceId]);
   return { workspaceId, siteId, siteIdParam, client };
 }

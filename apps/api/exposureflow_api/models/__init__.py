@@ -51,6 +51,7 @@ from exposureflow_api.models.execution_content import (
     ContentSourcePack,
     ExecutionJob,
 )
+from exposureflow_api.models.content_schedule import ContentSchedule
 from exposureflow_api.models.commercial import Plan, Subscription, UsageEvent, WorkspaceBranding, WorkspaceTransfer
 from exposureflow_api.models.security_compliance import (
     DataExportRequest,
@@ -125,6 +126,7 @@ __all__ = [
     "ContentGenerationRun",
     "ContentClaim",
     "ContentGateResult",
+    "ContentSchedule",
     "UsageEvent",
     "Plan",
     "Subscription",

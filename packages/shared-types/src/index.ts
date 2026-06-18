@@ -126,6 +126,7 @@ export interface Workspace {
   name: string;
   workspace_type: string;
   client_name?: string | null;
+  status?: string;
   plan_limits?: Record<string, number>;
 }
 

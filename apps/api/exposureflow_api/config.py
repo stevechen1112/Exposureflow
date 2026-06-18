@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     serper_api_key: str | None = None
     serpapi_api_key: str | None = None
     openai_api_key: str | None = None
+    gemini_api_key: str | None = None
+    llm_lite_model: str = "gpt-4o-mini"
+    llm_writing_model: str = "gpt-4o-mini"
+    llm_max_calls_per_run: int = 15
 
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None

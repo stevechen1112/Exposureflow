@@ -12,6 +12,7 @@ type TechIssue = {
   description?: string;
   details?: string;
   status?: string;
+  recommended_action?: string;
 };
 
 const SEVERITY_ORDER: Record<string, number> = {
@@ -42,6 +43,9 @@ const ISSUE_TYPE_LABEL: Record<string, string> = {
   missing_canonical: "缺少 Canonical",
   duplicate_content: "重複內容",
   indexing_blocked: "索引被阻擋",
+  gsc_sitemap_unreachable: "GSC Sitemap 無法抓取",
+  gsc_sitemap_missing: "GSC 未提交 Sitemap",
+  gsc_sitemap_api_error: "GSC Sitemap API 錯誤",
   redirect_chain: "重定向鏈",
   missing_structured_data: "缺少結構化資料",
   core_web_vitals: "Core Web Vitals",
@@ -234,18 +238,19 @@ export default function TechnicalIssuesPage() {
               <th>問題類型</th>
               <th>URL</th>
               <th>說明</th>
+              <th>建議處置</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} style={{ color: "var(--muted)" }}>
+                <td colSpan={5} style={{ color: "var(--muted)" }}>
                   載入中…
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ color: "var(--muted)" }}>
+                <td colSpan={5} style={{ color: "var(--muted)" }}>
                   {issues.length === 0 ? "目前沒有 open 技術問題" : "此篩選條件無符合項目"}
                 </td>
               </tr>
@@ -279,6 +284,9 @@ export default function TechnicalIssuesPage() {
                   </td>
                   <td style={{ fontSize: "0.85rem" }}>
                     {row.description ?? row.details ?? "—"}
+                  </td>
+                  <td style={{ fontSize: "0.82rem", color: "var(--accent-text)", maxWidth: 280 }}>
+                    {row.recommended_action ?? "—"}
                   </td>
                 </tr>
               ))

@@ -8,12 +8,20 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from exposureflow_api.billing.quota import count_monthly_usage, get_effective_limits
+from exposureflow_api.consultant.service import build_consultant_inbox
+from exposureflow_api.consultant.workspace_scope import list_client_workspaces_for_account
 from exposureflow_api.exposure.dashboard import build_dashboard_metrics
 from exposureflow_api.models import Site, Workspace
 from exposureflow_api.models.reporting import Report
 
 
-async def build_agency_dashboard(db: AsyncSession, account_id: UUID) -> dict:
+async def build_agency_dashboard(
+    db: AsyncSession,
+    account_id: UUID,
+    *,
+    user_id: UUID,
+    include_all_account_clients: bool = True,
+) -> dict:
     workspaces = await db.execute(
         select(Workspace).where(
             Workspace.account_id == account_id,
@@ -22,16 +30,22 @@ async def build_agency_dashboard(db: AsyncSession, account_id: UUID) -> dict:
     )
     ws_list = list(workspaces.scalars().all())
     limits = await get_effective_limits(db, account_id)
+    client_workspaces = await list_client_workspaces_for_account(
+        db,
+        account_id=account_id,
+        user_id=user_id,
+        include_all_account_clients=include_all_account_clients,
+    )
     clients: list[dict] = []
 
-    for ws in ws_list:
-        if ws.workspace_type == "agency_internal":
-            continue
-        sites = await db.execute(select(Site).where(Site.workspace_id == ws.id).limit(1))
-        site = sites.scalar_one_or_none()
+    for ws in client_workspaces:
+        sites = await db.execute(select(Site).where(Site.workspace_id == ws.id).order_by(Site.site_name))
+        site_list = list(sites.scalars().all())
+        site = site_list[0] if site_list else None
         exposure = None
         if site:
             exposure = await build_dashboard_metrics(db, ws.id, site.id)
+        inbox = await build_consultant_inbox(db, ws.id)
         report_count = await db.execute(
             select(func.count()).select_from(Report).where(
                 Report.workspace_id == ws.id,
@@ -45,6 +59,11 @@ async def build_agency_dashboard(db: AsyncSession, account_id: UUID) -> dict:
                 "name": ws.name,
                 "client_name": ws.client_name,
                 "workspace_type": ws.workspace_type,
+                "primary_site_id": str(site.id) if site else None,
+                "primary_site_domain": site.domain if site else None,
+                "site_count": len(site_list),
+                "inbox_urgent": inbox.summary.urgent,
+                "inbox_total": inbox.summary.total,
                 "total_impressions": exposure["total_impressions"] if exposure else 0,
                 "impressions_delta_pct": exposure["impressions_delta_pct"] if exposure else 0,
                 "open_opportunities": exposure["open_opportunity_count"] if exposure else 0,

@@ -18,6 +18,7 @@ from exposureflow_api.strategy.router import router as strategy_router
 from exposureflow_api.knowledge.router import router as knowledge_router
 from exposureflow_api.execution.router import router as execution_router
 from exposureflow_api.content.router import router as content_router
+from exposureflow_api.content.schedule_router import router as content_schedule_router
 from exposureflow_api.topics.router import router as topics_router
 from exposureflow_api.tenants.router import router as tenants_router
 from exposureflow_api.reporting.router import router as reporting_router
@@ -25,6 +26,7 @@ from exposureflow_api.reporting.client_router import router as client_portal_rou
 from exposureflow_api.billing.router import router as billing_router, webhook_router as stripe_webhook_router
 from exposureflow_api.billing.service import seed_plans
 from exposureflow_api.agency.router import router as agency_router
+from exposureflow_api.consultant.router import router as consultant_router
 from exposureflow_api.security.router import router as security_router
 from exposureflow_api.internal_admin.router import router as internal_admin_router
 from exposureflow_api.launch.router import internal_router as launch_internal_router
@@ -75,11 +77,13 @@ app.include_router(strategy_router)
 app.include_router(knowledge_router)
 app.include_router(execution_router)
 app.include_router(content_router)
+app.include_router(content_schedule_router)
 app.include_router(reporting_router)
 app.include_router(client_portal_router)
 app.include_router(billing_router)
 app.include_router(stripe_webhook_router)
 app.include_router(agency_router)
+app.include_router(consultant_router)
 app.include_router(security_router)
 app.include_router(ops_router)
 app.include_router(internal_admin_router)

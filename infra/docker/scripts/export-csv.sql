@@ -1,0 +1,1 @@
+\copy (SELECT cgr.id, COALESCE(cb.brief_json->>'keyword','article'), cgr.output_markdown FROM content_generation_runs cgr JOIN content_briefs cb ON cb.id = cgr.content_brief_id WHERE cgr.site_id = '02cb80a6-75ef-4a0a-b2b3-8911d650579e' AND cgr.status = 'publish_ready' ORDER BY cgr.updated_at DESC) TO '/tmp/runs_export.csv' WITH CSV HEADER

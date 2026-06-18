@@ -10,6 +10,8 @@ import httpx
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from exposureflow_api.common.url_safety import validate_safe_http_url
+from exposureflow_api.common.errors import APIError
 from exposureflow_api.config import settings
 from exposureflow_api.integrations.sync_helpers import finalize_job_run
 from exposureflow_api.knowledge.service import get_source
@@ -58,8 +60,9 @@ async def run_knowledge_source_ingest(db: AsyncSession, run: JobRun) -> None:
     content = ""
     if source.source_uri:
         try:
-            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-                resp = await client.get(source.source_uri, headers={
+            safe_url = validate_safe_http_url(source.source_uri)
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+                resp = await client.get(safe_url, headers={
                     "User-Agent": "ExposureFlow/1.0 KnowledgeIngest",
                     "Accept": "text/html,application/xhtml+xml",
                 })
@@ -72,13 +75,24 @@ async def run_knowledge_source_ingest(db: AsyncSession, run: JobRun) -> None:
                 text = re.sub(r'<[^>]+>', ' ', text)
                 text = re.sub(r'\s+', ' ', text).strip()
                 content = text[:8000]  # Limit to 8000 chars for API
-        except Exception as fetch_err:
+        except APIError as unsafe:
+            detail = unsafe.detail if isinstance(unsafe.detail, dict) else {}
+            message = detail.get("error", {}).get("message", "Unsafe URL")
+            await finalize_job_run(
+                run,
+                success=False,
+                output={},
+                error_code="UNSAFE_URL",
+                error_message=message,
+            )
+            return
+        except Exception:
             await finalize_job_run(
                 run,
                 success=False,
                 output={},
                 error_code="FETCH_FAILED",
-                error_message=f"Failed to fetch {source.source_uri}: {fetch_err}",
+                error_message="Failed to fetch source URL",
             )
             return
 
@@ -128,7 +142,7 @@ async def run_knowledge_source_ingest(db: AsyncSession, run: JobRun) -> None:
         )
         return
 
-    # Create fact records (auto-approved since extracted by AI from verified source)
+    # Create fact records (draft — requires human approval before Source Pack use)
     created = 0
     for item in facts:
         if not isinstance(item, dict):
@@ -143,15 +157,14 @@ async def run_knowledge_source_ingest(db: AsyncSession, run: JobRun) -> None:
                 fact_text=str(item.get("fact_text", "")),
                 market=item.get("market"),
                 language=item.get("language"),
-                status="approved",
+                status="draft",
                 metadata_json=item.get("metadata_json") or {},
             )
         )
         created += 1
 
-    # Auto-approve the source so facts are immediately usable in Source Pack
-    if source.status != "approved":
-        source.status = "approved"
+    if source.status == "pending":
+        source.status = "draft"
         db.add(source)
 
     await finalize_job_run(run, success=True, output={"facts_created": created})

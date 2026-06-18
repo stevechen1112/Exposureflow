@@ -21,10 +21,17 @@ def generate_section_markdown(
 ) -> tuple[str, list[dict]]:
     bound_refs = [source_refs[i] for i in plan.source_ref_indexes if i < len(source_refs)]
     if not bound_refs:
-        body = (
-            f"This section covers {plan.purpose.replace('_', ' ')}. "
-            "Additional evidence should be added before publish."
-        )
+        lang = (language or "").lower()
+        if lang.startswith("zh"):
+            body = (
+                f"本節說明{plan.heading.replace('？', '')}的重點。"
+                "發布前請補充更多佐證資料。"
+            )
+        else:
+            body = (
+                f"This section covers {plan.purpose.replace('_', ' ')}. "
+                "Additional evidence should be added before publish."
+            )
         return f"## {plan.heading}\n\n{body}\n", []
 
     paragraphs: list[str] = []

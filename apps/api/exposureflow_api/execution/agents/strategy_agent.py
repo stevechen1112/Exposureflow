@@ -47,10 +47,10 @@ ARCHITECTURE_TEMPLATES: dict[str, dict] = {
     "comprehensive_guide": {
         "label": "完整指南型",
         "structure": [
-            "什麼是{keyword}？（定義與背景）",
-            "{keyword}的重要性與影響",
-            "{keyword}的關鍵因素/挑選要點",
-            "常見類型/選項分析",
+            "先了解狀況與常見原因",
+            "為什麼值得認真處理",
+            "挑選與比較時要看什麼",
+            "常見做法與適用情境",
             "實用建議與注意事項",
             "常見問題 FAQ",
         ],
@@ -59,10 +59,10 @@ ARCHITECTURE_TEMPLATES: dict[str, dict] = {
     "comparison_with_recommendations": {
         "label": "比較推薦型",
         "structure": [
-            "{keyword}的常見選項概覽",
-            "選項 A vs 選項 B 深度比較",
+            "常見選項概覽",
+            "主要方案怎麼比較",
             "不同情境下的最佳選擇",
-            "價格/CP值分析",
+            "價格與 CP 值怎麼看",
             "專家建議與推薦",
             "常見問題 FAQ",
         ],
@@ -71,21 +71,21 @@ ARCHITECTURE_TEMPLATES: dict[str, dict] = {
     "faq_driven_with_deep_answers": {
         "label": "FAQ 驅動型",
         "structure": [
-            "核心問題：{keyword}是什麼？",
-            "讀者最常問的 5 個問題（逐一深答）",
+            "先搞懂核心問題",
+            "讀者最常問的 5 個問題",
             "進階問題與特殊情境",
             "專家補充觀點",
-            "總結與行動建議",
+            "總結與下一步建議",
         ],
         "best_for": ["informational", "faq", "long_tail"],
     },
     "howto_step_by_step": {
         "label": "步驟教學型",
         "structure": [
-            "{keyword}的前置準備",
-            "步驟一：...",
-            "步驟二：...",
-            "步驟三：...",
+            "動手前先準備什麼",
+            "步驟一：初步檢查",
+            "步驟二：處理與修復",
+            "步驟三：確認與保養",
             "常見錯誤與避免方法",
             "常見問題 FAQ",
         ],
@@ -94,9 +94,9 @@ ARCHITECTURE_TEMPLATES: dict[str, dict] = {
     "listicle_with_analysis": {
         "label": "清單分析型",
         "structure": [
-            "{keyword}的評選標準",
-            "Top N 推薦（逐一分析）",
-            "綜合比較表",
+            "評選時該看哪些重點",
+            "推薦選項逐一分析",
+            "綜合比較怎麼看",
             "不同需求的最佳選擇",
             "常見問題 FAQ",
         ],
@@ -174,11 +174,7 @@ def _build_outline(
     template = ARCHITECTURE_TEMPLATES.get(architecture, ARCHITECTURE_TEMPLATES["comprehensive_guide"])
     structure = template["structure"]
 
-    # Fill in keyword placeholders
-    outline = []
-    for item in structure:
-        filled = item.replace("{keyword}", keyword)
-        outline.append(filled)
+    outline = list(structure)
 
     # Add FAQ section if not already present
     if not any("FAQ" in h or "常見問題" in h for h in outline):

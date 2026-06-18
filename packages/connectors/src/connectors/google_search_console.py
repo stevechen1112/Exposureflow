@@ -138,3 +138,14 @@ class GSCClient:
                 break
             start_row += len(batch)
         return all_rows
+
+    def list_sitemaps(self) -> list[dict[str, Any]]:
+        """List sitemaps submitted in GSC for this site property."""
+        encoded_site = quote(self.site_url, safe="")
+        url = f"{GSC_API_BASE}/sites/{encoded_site}/sitemaps"
+        response = self._http.get(url, headers=self._headers())
+        if response.status_code == 404:
+            return []
+        response.raise_for_status()
+        body = response.json()
+        return list(body.get("sitemap", []))

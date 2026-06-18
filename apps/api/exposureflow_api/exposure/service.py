@@ -356,6 +356,171 @@ async def generate_opportunities_from_pyramid(
     return created
 
 
+async def generate_opportunities_from_indexability(
+    db: AsyncSession,
+    workspace_id: UUID,
+    site_id: UUID,
+    undiscovered_urls: list[str],
+) -> int:
+    """OG-013: Live URLs published 7+ days without GSC page discovery."""
+    if not undiscovered_urls:
+        return 0
+
+    p95 = await _site_p95_impressions(db, workspace_id, site_id)
+    seen = await _existing_opportunity_keys(db, workspace_id, site_id)
+    created = 0
+
+    for url in undiscovered_urls:
+        rule_id = "OG-013"
+        key = (rule_id, None, url)
+        if key in seen:
+            continue
+        seen.add(key)
+        score = score_opportunity(
+            ScoreInput(
+                query_impressions_28d=0,
+                site_p95_query_impressions=p95,
+                current_position=None,
+                targetable_slot_count=1,
+                execution_confidence=0.85,
+            )
+        )
+        db.add(
+            _build_opportunity(
+                workspace_id,
+                site_id,
+                opportunity_type="fix_indexability",
+                keyword=None,
+                current_url=url,
+                impressions=0,
+                position=None,
+                reason="OG-013: Published URL missing from sitemap after 7 days",
+                rule_id=rule_id,
+                score=score,
+                extra_evidence={"discovery_gap_days": 7},
+            )
+        )
+        created += 1
+
+    await db.flush()
+    return created
+
+
+_SITEMAP_RULE_IDS = {
+    "gsc_sitemap_missing": "OG-SITEMAP-001",
+    "gsc_sitemap_unreachable": "OG-SITEMAP-002",
+    "gsc_sitemap_api_error": "OG-SITEMAP-003",
+}
+
+_SITEMAP_OG_RULE_IDS = frozenset(_SITEMAP_RULE_IDS.values())
+
+
+async def resolve_open_sitemap_opportunities(
+    db: AsyncSession,
+    workspace_id: UUID,
+    site_id: UUID,
+) -> int:
+    """Close OG-SITEMAP opportunities after GSC sitemap health passes."""
+    result = await db.execute(
+        select(ExposureOpportunity).where(
+            ExposureOpportunity.workspace_id == workspace_id,
+            ExposureOpportunity.site_id == site_id,
+            ExposureOpportunity.status == "open",
+            ExposureOpportunity.opportunity_type == "fix_indexability",
+        )
+    )
+    resolved = 0
+    now = datetime.now(UTC)
+    for opp in result.scalars().all():
+        rule_id = (opp.evidence_json or {}).get("rule_id")
+        if rule_id not in _SITEMAP_OG_RULE_IDS:
+            continue
+        opp.status = "completed"
+        opp.evidence_json = {
+            **(opp.evidence_json or {}),
+            "auto_resolved_at": now.isoformat(),
+            "auto_resolved_reason": "GSC sitemap health check passed",
+        }
+        opp.updated_at = now
+        resolved += 1
+    if resolved:
+        await db.flush()
+    return resolved
+
+
+async def generate_opportunities_from_sitemap_health(
+    db: AsyncSession,
+    workspace_id: UUID,
+    site_id: UUID,
+    issues: list,
+    diagnoses: dict[str, dict],
+) -> int:
+    """Create consultant-facing fix_indexability opportunities from GSC sitemap issues."""
+    if not issues:
+        return 0
+
+    seen = await _existing_opportunity_keys(db, workspace_id, site_id)
+    created = 0
+
+    for issue in issues:
+        rule_id = _SITEMAP_RULE_IDS.get(issue.issue_type)
+        if not rule_id:
+            continue
+        sitemap_url = None
+        if issue.issue_type == "gsc_sitemap_unreachable":
+            broken = (issue.evidence or {}).get("broken_sitemaps") or []
+            if broken:
+                sitemap_url = broken[0].get("url")
+        key = (rule_id, None, sitemap_url)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        diagnosis = diagnoses.get(sitemap_url or "", {}) if sitemap_url else {}
+        root_cause = diagnosis.get("root_cause")
+        reason = issue.description
+        if root_cause == "localhost_urls":
+            reason = "Sitemap contains localhost URLs — target site base URL misconfigured"
+        elif root_cause == "wrong_domain":
+            reason = "Sitemap URLs use wrong domain — check site URL configuration"
+        elif root_cause == "content_ok_gsc_stale":
+            reason = "Live sitemap OK but GSC still reports errors — resubmit or wait for re-fetch"
+
+        score = score_opportunity(
+            ScoreInput(
+                query_impressions_28d=0,
+                site_p95_query_impressions=1,
+                current_position=None,
+                targetable_slot_count=1,
+                execution_confidence=0.9 if root_cause in {"localhost_urls", "wrong_domain"} else 0.75,
+            )
+        )
+        priority = "critical" if issue.severity == "high" and root_cause != "content_ok_gsc_stale" else "high"
+        opp = _build_opportunity(
+            workspace_id,
+            site_id,
+            opportunity_type="fix_indexability",
+            keyword=None,
+            current_url=sitemap_url,
+            impressions=0,
+            position=None,
+            reason=reason,
+            rule_id=rule_id,
+            score=score,
+            extra_evidence={
+                "issue_type": issue.issue_type,
+                "root_cause": root_cause,
+                "live_diagnosis": diagnosis or None,
+            },
+        )
+        opp.priority = priority
+        db.add(opp)
+        created += 1
+
+    await db.flush()
+    return created
+
+
 def _build_opportunity(
     workspace_id: UUID,
     site_id: UUID,

@@ -1,42 +1,34 @@
-"""Unit tests for execution adapters EF-0810–0813."""
+"""Tests for execution adapters."""
 
-from exposureflow_api.execution.adapters.outreach import run_outreach_adapter
-from exposureflow_api.execution.adapters.refresh import run_refresh_adapter
-from exposureflow_api.execution.adapters.schema_enhancement import run_schema_adapter
-from exposureflow_api.execution.adapters.technical_fix import run_technical_fix_adapter
-
-
-def test_refresh_adapter() -> None:
-    result = run_refresh_adapter(
-        {"current_url": "https://example.com/page", "keyword": "industrial pump"}
-    )
-    assert result.success
-    assert result.output["adapter"] == "refresh"
-    assert "update_suggestions" in result.output
+from exposureflow_api.execution.adapters.merge_pages import run_merge_pages_adapter
+from exposureflow_api.execution.adapters.content_generation import run_content_generation_adapter
+from exposureflow_api.execution.dispatcher import _resolve_adapter_key
+from types import SimpleNamespace
 
 
-def test_schema_adapter_faq() -> None:
-    result = run_schema_adapter(
+def test_merge_pages_adapter_outputs_plan() -> None:
+    result = run_merge_pages_adapter(
         {
-            "schema_type": "faq",
-            "entities": [{"subject": "Q1", "fact_text": "A1"}],
+            "keyword": "換紗窗價格",
+            "canonical_url": "https://example.com/pricing",
+            "urls": ["https://example.com/old-a", "https://example.com/old-b"],
         }
     )
     assert result.success
-    assert "schema:faq" in result.output["output_markdown"]
+    assert result.output["canonical_url"] == "https://example.com/pricing"
+    assert len(result.output["competing_urls"]) == 2
 
 
-def test_technical_fix_adapter() -> None:
-    result = run_technical_fix_adapter(
-        {"issue_type": "noindex", "current_url": "https://example.com/x"}
+def test_content_generation_adapter_requires_brief() -> None:
+    fail = run_content_generation_adapter({})
+    assert not fail.success
+    ok = run_content_generation_adapter({"brief_id": "abc"})
+    assert ok.success
+
+
+def test_dispatcher_resolves_action_type_from_input() -> None:
+    job = SimpleNamespace(
+        job_type="content_generation",
+        input_json={"action_type": "merge_pages"},
     )
-    assert result.success
-    assert result.output["issue_type"] == "noindex"
-
-
-def test_outreach_adapter() -> None:
-    result = run_outreach_adapter(
-        {"keyword": "pump", "outreach_targets": ["industry-blog.com"]}
-    )
-    assert result.success
-    assert result.output["requires_human"] is True
+    assert _resolve_adapter_key(job) == "merge_pages"

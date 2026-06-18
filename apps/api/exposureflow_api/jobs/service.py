@@ -19,6 +19,7 @@ JOB_TYPE_QUOTA_METRIC: dict[str, str] = {
     "content.generate.grounded_draft": "content_generation_runs",
     "content.publish_gate.check": "claim_verification_runs",
     "knowledge.fact.embed": "knowledge_embedding",
+    "knowledge.source.ingest": "knowledge_sources",
     "report.monthly.generate": "report_exports",
 }
 
@@ -26,6 +27,32 @@ JOB_TYPE_QUOTA_METRIC: dict[str, str] = {
 async def _get_job_definition(db: AsyncSession, job_type: str) -> JobDefinition | None:
     result = await db.execute(select(JobDefinition).where(JobDefinition.job_type == job_type))
     return result.scalar_one_or_none()
+
+
+async def _find_job_by_idempotency_key(
+    db: AsyncSession, workspace_id: UUID, idempotency_key: str
+) -> JobRun | None:
+    result = await db.execute(
+        select(JobRun).where(
+            JobRun.workspace_id == workspace_id,
+            JobRun.idempotency_key == idempotency_key,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+def _requeue_existing_run(run: JobRun) -> None:
+    run.status = "queued"
+    run.error_code = None
+    run.error_message = None
+    run.output_json = {}
+    run.started_at = None
+    run.completed_at = None
+    celery_app.send_task(
+        "exposureflow_api.jobs.tasks.execute_job_run",
+        args=[str(run.id)],
+        queue="default",
+    )
 
 
 async def enqueue_job(
@@ -37,6 +64,14 @@ async def enqueue_job(
     input_json: dict | None = None,
     idempotency_key: str | None = None,
 ) -> JobRun:
+    if idempotency_key:
+        existing = await _find_job_by_idempotency_key(db, workspace_id, idempotency_key)
+        if existing is not None:
+            if existing.status == "failed":
+                _requeue_existing_run(existing)
+                await db.flush()
+            return existing
+
     metric = JOB_TYPE_QUOTA_METRIC.get(job_type)
     if metric:
         await billing_quota.check_quota(db, workspace_id, metric)

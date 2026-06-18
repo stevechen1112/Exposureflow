@@ -5,6 +5,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { parseApiError } from "@/components/ForbiddenState";
 import { useSiteContext } from "@/lib/hooks";
 import { useWorkspaceAuth } from "@/lib/auth-context";
+import type { ActionCandidate } from "@exposureflow/shared-types";
+import {
+  formatCandidateLabel,
+  isContentGenerationCandidate,
+} from "@/lib/candidate-utils";
 
 type GenerationRun = {
   id: string;
@@ -47,12 +52,21 @@ const STATUS_LABEL: Record<string, string> = {
   claim_blocked: "Claim 阻擋",
   needs_changes: "需修改",
   approved: "已核准",
+  publish_ready: "可發布",
   published: "已發布",
   queued: "排隊中",
 };
 
 function isReviewable(status: string) {
   return REVIEWABLE_STATUSES.has(status);
+}
+
+function canPublishDraft(status: string) {
+  return status === "approved" || status === "publish_ready";
+}
+
+function canPublishLive(status: string) {
+  return status === "published";
 }
 
 const REVIEW_LEVEL_LABEL: Record<string, string> = {
@@ -79,6 +93,7 @@ export default function ContentReviewPage() {
   const { siteId, client } = useSiteContext();
   const { can } = useWorkspaceAuth();
   const canReview = can("site:write");
+  const canPublish = can("job:write");
   const [runs, setRuns] = useState<GenerationRun[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -88,7 +103,8 @@ export default function ContentReviewPage() {
   const [panel, setPanel] = useState<ActivePanel>(null);
   const [changesNote, setChangesNote] = useState("");
   // ---- Content generation workflow ----
-  const [approvedCandidates, setApprovedCandidates] = useState<Array<{ id: string; action_type: string; opportunity_id: string; keyword?: string }>>([]);
+  const [approvedCandidates, setApprovedCandidates] = useState<ActionCandidate[]>([]);
+  const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [selectedCandidateId, setSelectedCandidateId] = useState("");
   const [workflowStep, setWorkflowStep] = useState<"idle" | "building_source_pack" | "building_brief" | "creating_job" | "creating_run">("idle");
   const [sourcePackId, setSourcePackId] = useState("");
@@ -97,7 +113,91 @@ export default function ContentReviewPage() {
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null);
 
-  const [candidatesError, setCandidatesError] = useState<string | null>(null);
+  const [schedule, setSchedule] = useState<Record<string, unknown> | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchResult, setBatchResult] = useState<{ triggered: number; skipped: number; message: string } | null>(null);
+
+  const loadSchedule = useCallback(async () => {
+    if (!siteId) return;
+    setScheduleLoading(true);
+    try {
+      const s = await client.getContentSchedule(siteId);
+      setSchedule(s);
+      setScheduleError(null);
+    } catch (err) {
+      // 404 or network error — no schedule configured yet
+      setSchedule(null);
+      setScheduleError(null);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [client, siteId]);
+
+  useEffect(() => { loadSchedule(); }, [loadSchedule]);
+
+  // Auto-dismiss batch result after 8s
+  useEffect(() => {
+    if (!batchResult) return;
+    const t = setTimeout(() => setBatchResult(null), 8000);
+    return () => clearTimeout(t);
+  }, [batchResult]);
+
+  async function saveSchedule() {
+    if (!siteId) return;
+    setScheduleError(null);
+    setScheduleSuccess(null);
+    try {
+      const body = {
+        enabled: (schedule?.enabled as boolean) ?? false,
+        articles_per_week: (schedule?.articles_per_week as number) ?? 2,
+        priority_filter: (schedule?.priority_filter as string) ?? "P1",
+        schedule_days_json: (schedule?.schedule_days_json as string[]) ?? ["mon", "thu"],
+      };
+      const result = await client.upsertContentSchedule(siteId, body);
+      setSchedule(result);
+      setScheduleSuccess("排程設定已儲存");
+    } catch (err) {
+      setScheduleError(err instanceof Error ? err.message : "儲存失敗");
+    }
+  }
+
+  async function runBatchGenerate() {
+    if (!siteId) return;
+    setBatchBusy(true);
+    setBatchResult(null);
+    setError(null);
+    try {
+      const result = await client.batchGenerateContent({
+        site_id: siteId,
+        count: (schedule?.articles_per_week as number) ?? 2,
+        priority_filter: (schedule?.priority_filter as string) ?? "P1",
+      });
+      setBatchResult(result);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批次生成失敗");
+    } finally {
+      setBatchBusy(false);
+    }
+  }
+
+  const DAY_OPTIONS = [
+    { value: "mon", label: "週一" },
+    { value: "tue", label: "週二" },
+    { value: "wed", label: "週三" },
+    { value: "thu", label: "週四" },
+    { value: "fri", label: "週五" },
+  ];
+
+  const toggleDay = (day: string) => {
+    if (!schedule) return;
+    const days = (schedule.schedule_days_json as string[]) ?? ["mon", "thu"];
+    const next = days.includes(day) ? days.filter(d => d !== day) : [...days, day];
+    setSchedule({ ...schedule, schedule_days_json: next });
+  };
   const [pipelineBusy, setPipelineBusy] = useState<string | null>(null);
   const [pipelineResult, setPipelineResult] = useState<{
     run_id: string;
@@ -107,9 +207,19 @@ export default function ContentReviewPage() {
   } | null>(null);
 
   const loadApprovedCandidates = useCallback(async () => {
+    if (!siteId) return;
     try {
       const rows = await client.listCandidates(siteId, "approved");
-      setApprovedCandidates(rows as Array<{ id: string; action_type: string; opportunity_id: string; keyword?: string }>);
+      const contentEligible = rows.filter(isContentGenerationCandidate);
+      const seen = new Set<string>();
+      const deduped: ActionCandidate[] = [];
+      for (const r of contentEligible) {
+        if (!seen.has(r.id)) {
+          seen.add(r.id);
+          deduped.push(r);
+        }
+      }
+      setApprovedCandidates(deduped);
       setCandidatesError(null);
     } catch (err) {
       setCandidatesError(err instanceof Error ? err.message : "載入候選項目失敗");
@@ -160,9 +270,9 @@ export default function ContentReviewPage() {
         site_id: siteId,
         execution_job_id: job.id as string,
         content_brief_id: brief.id as string,
-        generation_mode: "grounded_template",
+        generation_mode: "grounded_llm",
         review_level: "editor_review",
-        auto_compile: true,
+        auto_compile: false,
       });
 
       setWorkflowSuccess("內容生成已觸發！請稍候片刻後重新整理查看結果");
@@ -254,6 +364,42 @@ export default function ContentReviewPage() {
     }
   }
 
+  async function publishToSite(runId: string, siteStatus: "draft" | "published") {
+    setBusy(runId);
+    setSuccess(null);
+    try {
+      const result = await client.publishGenerationRun(runId, { site_status: siteStatus });
+      const slug = typeof result.slug === "string" ? result.slug : "";
+      const postUrl = typeof result.post_url === "string" ? result.post_url : "";
+      const indexability = result.indexability_verify as
+        | { ok?: boolean; has_noindex?: boolean; url_reachable?: boolean }
+        | undefined;
+      let indexNote = "";
+      if (siteStatus === "published" && indexability) {
+        if (indexability.ok) {
+          indexNote = "；已上線，待 Google 自然收錄";
+        } else if (indexability.has_noindex) {
+          indexNote = "；警告：頁面含 noindex";
+        } else if (indexability.url_reachable === false) {
+          indexNote = "；警告：上線 URL 無法開啟";
+        } else {
+          indexNote = "；索引可發現性警告，請至技術問題檢視";
+        }
+      }
+      setSuccess(
+        siteStatus === "published"
+          ? `已正式上線恆惠站${postUrl ? `：${postUrl}` : slug ? `（${slug}）` : ""}${indexNote}`
+          : `已推送草稿至恆惠站${postUrl ? `：${postUrl}` : slug ? `（${slug}）` : ""}`,
+      );
+      setPanel(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "發布至恆惠站失敗");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   function seoScoreBadge(score: number) {
     const color = score >= 85 ? "#15803d" : score >= 60 ? "#c2410c" : "#b91c1c";
     const bg = score >= 85 ? "rgba(22,163,74,0.12)" : score >= 60 ? "rgba(234,88,12,0.12)" : "rgba(220,38,38,0.1)";
@@ -274,6 +420,7 @@ export default function ContentReviewPage() {
     "claim_verified",
     "claim_blocked",
     "approved",
+    "publish_ready",
     "draft",
     "published",
   ];
@@ -326,7 +473,22 @@ export default function ContentReviewPage() {
 
       {/* Content generation workflow */}
       {canReview && (
-        <div className="card" style={{ marginBottom: "1.5rem" }}>
+        <>
+          {/* Workflow step indicator */}
+          <div className="workflow-steps">
+            {[
+              { step: 1, label: "選擇機會", active: workflowStep === "idle", done: sourcePackId !== "" },
+              { step: 2, label: "Source Pack", active: workflowStep === "building_source_pack", done: sourcePackId !== "" && briefId !== "" },
+              { step: 3, label: "Content Brief", active: workflowStep === "building_brief", done: briefId !== "" && executionJobId !== "" },
+              { step: 4, label: "觸發生成", active: workflowStep === "creating_job" || workflowStep === "creating_run", done: workflowSuccess !== null },
+            ].map(s => (
+              <div key={s.step} className={`workflow-step${s.active ? " active" : ""}${s.done && !s.active ? " done" : ""}`}>
+                {s.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="card card-primary" style={{ marginBottom: "1.5rem" }}>
           <h2 style={{ fontSize: "1rem", marginTop: 0 }}>內容生成工作區</h2>
           <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: 0 }}>
             從已核准的候選項目建立 Source Pack → Content Brief → Execution Job → 觸發 AI 生成
@@ -348,7 +510,7 @@ export default function ContentReviewPage() {
                 <option value="">— 選擇候選項目 —</option>
                 {approvedCandidates.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.keyword ?? c.action_type} ({c.action_type})
+                    {formatCandidateLabel(c)}
                   </option>
                 ))}
               </select>
@@ -380,6 +542,127 @@ export default function ContentReviewPage() {
               {executionJobId && <> → Job: <code>{executionJobId}</code></>}
             </div>
           )}
+        </div>
+        </>
+      )}
+
+      {/* ---- Content Schedule & Batch Generation ---- */}
+      {canReview && (
+        <div className="card card-secondary" style={{ marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: "1rem", margin: 0 }}>📅 內容排程與批次生成</h2>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={batchBusy}
+                onClick={runBatchGenerate}
+              >
+                {batchBusy ? "批次生成中…" : `⚡ 批次生成 ${schedule?.articles_per_week ?? 2} 篇`}
+              </button>
+              <button type="button" className="btn" onClick={loadSchedule} disabled={scheduleLoading}>
+                刷新
+              </button>
+            </div>
+          </div>
+
+          {batchResult && (
+            <div style={{
+              marginTop: "0.75rem", padding: "0.5rem 0.75rem",
+              background: "rgba(22,163,74,0.1)", borderRadius: 8,
+              fontSize: "0.85rem", color: "var(--success)",
+            }}>
+              {batchResult.message}（觸發 {batchResult.triggered}，跳過 {batchResult.skipped}）
+            </div>
+          )}
+
+          {scheduleError && <p style={{ color: "var(--danger)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{scheduleError}</p>}
+          {scheduleSuccess && <p style={{ color: "var(--success)", fontSize: "0.85rem", marginTop: "0.5rem" }}>{scheduleSuccess}</p>}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", marginTop: "1rem" }}>
+            {/* Enable toggle */}
+            <div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.9rem" }}>
+                <input
+                  type="checkbox"
+                  checked={(schedule?.enabled as boolean) ?? false}
+                  onChange={(e) => setSchedule(schedule ? { ...schedule, enabled: e.target.checked } : { enabled: e.target.checked })}
+                />
+                啟用自動排程
+              </label>
+              <p style={{ fontSize: "0.75rem", color: "var(--muted)", margin: "0.25rem 0 0" }}>
+                每週一/四自動從已核准候選觸發生成
+              </p>
+            </div>
+
+            {/* Articles per week */}
+            <div>
+              <label style={{ fontSize: "0.85rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                每週篇數
+              </label>
+              <select
+                value={(schedule?.articles_per_week as number) ?? 2}
+                onChange={(e) => setSchedule(schedule ? { ...schedule, articles_per_week: Number(e.target.value) } : { articles_per_week: Number(e.target.value) })}
+                style={{ width: "100%" }}
+              >
+                {[1, 2, 3, 4, 5, 7, 10].map(n => (
+                  <option key={n} value={n}>{n} 篇/週</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Priority filter */}
+            <div>
+              <label style={{ fontSize: "0.85rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                優先級篩選
+              </label>
+              <select
+                value={(schedule?.priority_filter as string) ?? "P1"}
+                onChange={(e) => setSchedule(schedule ? { ...schedule, priority_filter: e.target.value } : { priority_filter: e.target.value })}
+                style={{ width: "100%" }}
+              >
+                <option value="P0">P0 — 緊急</option>
+                <option value="P1">P1 — 高優先</option>
+                <option value="P2">P2 — 中優先</option>
+                <option value="P3">P3 — 低優先</option>
+              </select>
+            </div>
+
+            {/* Schedule days */}
+            <div>
+              <label style={{ fontSize: "0.85rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                執行日
+              </label>
+              <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                {DAY_OPTIONS.map(d => {
+                  const days = (schedule?.schedule_days_json as string[]) ?? ["mon", "thu"];
+                  const active = days.includes(d.value);
+                  return (
+                    <button
+                      key={d.value}
+                      type="button"
+                      className={`btn ${active ? "btn-primary" : ""}`}
+                      style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                      onClick={() => toggleDay(d.value)}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+            <button type="button" className="btn btn-primary" onClick={saveSchedule}>
+              儲存排程設定
+            </button>
+            {typeof schedule?.last_run_at === "string" ? (
+              <span style={{ fontSize: "0.8rem", color: "var(--muted)", alignSelf: "center" }}>
+                上次執行：{fmtTime(schedule.last_run_at)}
+              </span>
+            ) : null}
+          </div>
         </div>
       )}
 
@@ -476,6 +759,28 @@ export default function ContentReviewPage() {
                           {pipelineBusy === run.id ? "執行中…" : "🔬 Pipeline"}
                         </button>
                       )}
+                      {canPublishDraft(run.status) && canPublish && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", background: "#0f766e" }}
+                          disabled={busy === run.id}
+                          onClick={() => publishToSite(run.id, "draft")}
+                        >
+                          {busy === run.id ? "發布中…" : "發布至恆惠站（草稿）"}
+                        </button>
+                      )}
+                      {canPublishLive(run.status) && canPublish && (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          style={{ fontSize: "0.8rem", padding: "0.3rem 0.6rem", background: "#b45309" }}
+                          disabled={busy === run.id}
+                          onClick={() => publishToSite(run.id, "published")}
+                        >
+                          {busy === run.id ? "上線中…" : "正式上線恆惠站"}
+                        </button>
+                      )}
                       {isReviewable(run.status) && canReview && (
                         <>
                           <button
@@ -533,6 +838,28 @@ export default function ContentReviewPage() {
               </span>
             </h2>
             <div style={{ display: "flex", gap: "0.5rem" }}>
+              {canPublishDraft(panel.run.status) && canPublish && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: "#0f766e", color: "#fff" }}
+                  disabled={busy === panel.run.id}
+                  onClick={() => publishToSite(panel.run.id, "draft")}
+                >
+                  發布至恆惠站（草稿）
+                </button>
+              )}
+              {canPublishLive(panel.run.status) && canPublish && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ background: "#b45309", color: "#fff" }}
+                  disabled={busy === panel.run.id}
+                  onClick={() => publishToSite(panel.run.id, "published")}
+                >
+                  正式上線恆惠站
+                </button>
+              )}
               {isReviewable(panel.run.status) && canReview && (
                 <button
                   type="button"

@@ -44,6 +44,27 @@ JOB_DEFINITIONS: list[dict[str, str | int | bool | None]] = [
         "max_retries": 2,
     },
     {
+        "job_type": "indexability.sitemap_health",
+        "description": "Weekly GSC sitemap health audit",
+        "default_schedule": "45 4 * * 1",
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
+        "job_type": "indexability.published_noindex",
+        "description": "Daily published article noindex and robots audit",
+        "default_schedule": "10 4 * * *",
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
+        "job_type": "indexability.coverage_check",
+        "description": "Weekly OG-013 index discovery gap check",
+        "default_schedule": "0 5 * * 5",
+        "enabled": True,
+        "max_retries": 2,
+    },
+    {
         "job_type": "topic_graph.rebuild",
         "description": "Rebuild topic coverage graph from GSC and SERP",
         "default_schedule": "0 7 * * 1",

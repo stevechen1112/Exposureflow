@@ -21,6 +21,22 @@ FIX_PLAYBOOK: dict[str, dict] = {
         "summary": "Resolve indexability blockers",
         "steps": ["Audit HTTP status", "Fix redirect chains", "Remove noindex"],
     },
+    "gsc_sitemap_unreachable": {
+        "summary": "Fix GSC sitemap fetch errors",
+        "steps": [
+            "Fetch live /sitemap.xml and verify URLs use production domain",
+            "Fix site base URL env (e.g. NEXT_PUBLIC_SITE_URL) if localhost appears",
+            "Rebuild target site and verify sitemap in browser",
+            "Resubmit sitemap once in GSC after fix",
+        ],
+    },
+    "gsc_sitemap_missing": {
+        "summary": "Submit sitemap to Google Search Console",
+        "steps": [
+            "Verify https://{domain}/sitemap.xml is reachable",
+            "Submit sitemap once in GSC onboarding checklist",
+        ],
+    },
     "fix_ai_crawler_access": {
         "summary": "Allow approved AI crawlers per policy",
         "steps": ["Review robots.txt AI bot rules", "Apply client AI crawler policy"],
@@ -30,6 +46,11 @@ FIX_PLAYBOOK: dict[str, dict] = {
 
 def run_technical_fix_adapter(input_json: dict) -> AdapterResult:
     issue_type = input_json.get("issue_type") or input_json.get("opportunity_type") or "fix_indexability"
+    evidence = input_json.get("evidence_json") or input_json.get("evidence") or {}
+    if isinstance(evidence, dict):
+        nested_issue = evidence.get("issue_type")
+        if nested_issue in FIX_PLAYBOOK:
+            issue_type = nested_issue
     url = input_json.get("current_url") or input_json.get("target_url")
     playbook = FIX_PLAYBOOK.get(issue_type, FIX_PLAYBOOK["fix_indexability"])
     if not url:
