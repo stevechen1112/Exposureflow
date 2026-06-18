@@ -131,3 +131,33 @@ async def test_status_incident_admin_create(client: AsyncClient) -> None:
     assert public.status_code == 200
     titles = [row["title"] for row in public.json()]
     assert "API latency" in titles
+
+
+@pytest.mark.asyncio
+async def test_ops_maintenance_run_and_latest(client: AsyncClient) -> None:
+    token, _ws = await _auth(client, "ops-maint@example.com", "Ops Maint")
+    await _grant_support_admin("ops-maint@example.com")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    empty = await client.get("/api/v1/internal/ops-maintenance/latest", headers=headers)
+    assert empty.status_code == 200
+    assert empty.json()["run"] is None
+
+    run_resp = await client.post(
+        "/api/v1/internal/ops-maintenance/run",
+        headers=headers,
+        json={"use_llm_summary": False},
+    )
+    assert run_resp.status_code == 200
+    body = run_resp.json()
+    assert body["run"]["status"] in {"pass", "warn", "critical"}
+    assert body["run"]["summary_title"]
+    assert isinstance(body["signals"], list)
+
+    latest = await client.get("/api/v1/internal/ops-maintenance/latest", headers=headers)
+    assert latest.status_code == 200
+    assert latest.json()["run"]["id"] == body["run"]["id"]
+
+    runs = await client.get("/api/v1/internal/ops-maintenance/runs", headers=headers)
+    assert runs.status_code == 200
+    assert len(runs.json()) >= 1

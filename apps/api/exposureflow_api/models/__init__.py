@@ -62,6 +62,7 @@ from exposureflow_api.models.reporting import Report
 from exposureflow_api.models.client_deliverables import ClientMeetingNote, DeliveryAnnotation
 from exposureflow_api.models.integrations import IntegrationCredential
 from exposureflow_api.models.operations import AuditLog, JobDefinition, JobRun
+from exposureflow_api.models.ops_health import OpsHealthRun, OpsHealthSignal
 from exposureflow_api.models.product_ops import Notification, PlatformStatusIncident, SupportTicket
 from exposureflow_api.models.security import (
     ApiKey,
@@ -145,6 +146,8 @@ __all__ = [
     "JobDefinition",
     "JobRun",
     "AuditLog",
+    "OpsHealthRun",
+    "OpsHealthSignal",
     "Notification",
     "SupportTicket",
     "PlatformStatusIncident",

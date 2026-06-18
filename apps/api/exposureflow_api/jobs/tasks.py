@@ -226,3 +226,42 @@ def enqueue_indexability_coverage_checks(self) -> dict:
         return asyncio.run(_run())
     except Exception as exc:  # noqa: BLE001
         raise self.retry(exc=exc, countdown=300) from exc
+
+
+@celery_app.task(name="exposureflow_api.jobs.tasks.run_ops_daily_health", bind=True, max_retries=2)
+def run_ops_daily_health(self) -> dict:
+    """Celery Beat: daily platform ops health check (AI maintenance engineer)."""
+    import asyncio
+    from datetime import UTC, datetime, time
+
+    from sqlalchemy import select
+
+    from exposureflow_api.database import async_session_factory
+    from exposureflow_api.models.ops_health import OpsHealthRun
+    from exposureflow_api.ops_maintenance.service import run_daily_ops_health
+
+    async def _run() -> dict:
+        async with async_session_factory() as db:
+            today_start = datetime.combine(datetime.now(UTC).date(), time.min, tzinfo=UTC)
+            existing = (
+                await db.execute(
+                    select(OpsHealthRun).where(
+                        OpsHealthRun.trigger == "scheduled",
+                        OpsHealthRun.started_at >= today_start,
+                    )
+                )
+            ).scalar_one_or_none()
+            if existing is not None:
+                return {
+                    "skipped": True,
+                    "run_id": str(existing.id),
+                    "status": existing.status,
+                }
+            run = await run_daily_ops_health(db, trigger="scheduled", use_llm_summary=True)
+            await db.commit()
+            return {"skipped": False, "run_id": str(run.id), "status": run.status}
+
+    try:
+        return asyncio.run(_run())
+    except Exception as exc:  # noqa: BLE001
+        raise self.retry(exc=exc, countdown=300) from exc

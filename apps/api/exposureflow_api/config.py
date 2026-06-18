@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     kms_key_id: str | None = None
     trust_proxy_headers: bool = False
     notification_email_enabled: bool = False
+    ops_notification_email_to: str | None = None
+    ops_slack_webhook_url: str | None = None
 
 
 settings = Settings()

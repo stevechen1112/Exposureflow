@@ -36,6 +36,10 @@ celery_app.conf.update(
             "task": "exposureflow_api.jobs.tasks.enqueue_indexability_coverage_checks",
             "schedule": crontab(minute=0, hour=5, day_of_week=5),
         },
+        "ops-daily-health": {
+            "task": "exposureflow_api.jobs.tasks.run_ops_daily_health",
+            "schedule": crontab(minute=0, hour=0),
+        },
     },
 )
 

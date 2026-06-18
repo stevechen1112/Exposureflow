@@ -15,6 +15,7 @@ const NAV = [
   { href: "/internal-admin/audit", label: "Audit Logs" },
   { href: "/internal-admin/cs", label: "Customer Success" },
   { href: "/internal-admin/integration-health", label: "Integration Health" },
+  { href: "/internal-admin/ops-maintenance", label: "維護工程師" },
   { href: "/internal-admin/provider-costs", label: "Provider Costs" },
   { href: "/internal-admin/support", label: "Support Tickets" },
   { href: "/internal-admin/status", label: "Status Page" },

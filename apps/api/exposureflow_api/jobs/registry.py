@@ -148,4 +148,11 @@ JOB_DEFINITIONS: list[dict[str, str | int | bool | None]] = [
         "enabled": True,
         "max_retries": 3,
     },
+    {
+        "job_type": "ops.daily_health",
+        "description": "Daily production maintenance engineer check",
+        "default_schedule": "0 0 * * *",
+        "enabled": True,
+        "max_retries": 2,
+    },
 ]

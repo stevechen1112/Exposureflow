@@ -32,9 +32,10 @@ from exposureflow_api.internal_admin.router import router as internal_admin_rout
 from exposureflow_api.launch.router import internal_router as launch_internal_router
 from exposureflow_api.launch.router import router as launch_router
 from exposureflow_api.notifications.router import router as notifications_router
-from exposureflow_api.ops.router import router as ops_router
+from exposureflow_api.ops_maintenance.router import router as ops_maintenance_router
 from exposureflow_api.observability.logging import configure_logging
 from exposureflow_api.observability.middleware import ObservabilityMiddleware
+from exposureflow_api.ops.router import router as ops_router
 
 
 @asynccontextmanager
@@ -87,6 +88,7 @@ app.include_router(consultant_router)
 app.include_router(security_router)
 app.include_router(ops_router)
 app.include_router(internal_admin_router)
+app.include_router(ops_maintenance_router)
 app.include_router(launch_internal_router)
 app.include_router(notifications_router)
 app.include_router(launch_router)

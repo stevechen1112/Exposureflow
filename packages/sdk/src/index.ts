@@ -1018,6 +1018,133 @@ export class ExposureFlowClient {
   getRefreshRecommendations(siteId: string): Promise<Array<Record<string, unknown>>> {
     return request(this.options, `/api/v1/analytics/refresh-recommendations?site_id=${siteId}`);
   }
+
+  // ── Internal Admin ──────────────────────────────────────────────────────
+
+  internalListWorkspaces(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/internal/workspaces");
+  }
+
+  internalListAccounts(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/internal/accounts");
+  }
+
+  internalUpdateFeatureFlags(
+    workspaceId: string,
+    featureFlags: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    return request(this.options, `/api/v1/internal/workspaces/${workspaceId}/feature-flags`, {
+      method: "PATCH",
+      body: JSON.stringify({ feature_flags: featureFlags }),
+    });
+  }
+
+  internalSearchUsers(email?: string): Promise<Array<Record<string, unknown>>> {
+    const q = email ? `?email=${encodeURIComponent(email)}` : "";
+    return request(this.options, `/api/v1/internal/users${q}`);
+  }
+
+  internalListJobs(params?: { workspace_id?: string; status?: string }): Promise<Array<Record<string, unknown>>> {
+    const q = new URLSearchParams();
+    if (params?.workspace_id) q.set("workspace_id", params.workspace_id);
+    if (params?.status) q.set("status", params.status);
+    const suffix = q.toString() ? `?${q}` : "";
+    return request(this.options, `/api/v1/internal/jobs${suffix}`);
+  }
+
+  internalListSyncStates(params?: {
+    workspace_id?: string;
+    failing_only?: boolean;
+  }): Promise<Array<Record<string, unknown>>> {
+    const q = new URLSearchParams();
+    if (params?.workspace_id) q.set("workspace_id", params.workspace_id);
+    if (params?.failing_only) q.set("failing_only", "true");
+    const suffix = q.toString() ? `?${q}` : "";
+    return request(this.options, `/api/v1/internal/sync-states${suffix}`);
+  }
+
+  internalListAuditLogs(params?: {
+    workspace_id?: string;
+    action_prefix?: string;
+  }): Promise<Array<Record<string, unknown>>> {
+    const q = new URLSearchParams();
+    if (params?.workspace_id) q.set("workspace_id", params.workspace_id);
+    if (params?.action_prefix) q.set("action_prefix", params.action_prefix);
+    const suffix = q.toString() ? `?${q}` : "";
+    return request(this.options, `/api/v1/internal/audit-logs${suffix}`);
+  }
+
+  internalCsActivation(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/internal/cs/activation");
+  }
+
+  internalCsFunnel(): Promise<Record<string, unknown>> {
+    return request(this.options, "/api/v1/internal/cs/onboarding-funnel");
+  }
+
+  internalProviderCosts(days = 30): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/provider-costs?days=${days}`);
+  }
+
+  internalListSupportTickets(workspaceId?: string): Promise<Array<Record<string, unknown>>> {
+    const q = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : "";
+    return request(this.options, `/api/v1/internal/support/tickets${q}`);
+  }
+
+  internalListStatusIncidents(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/internal/status/incidents");
+  }
+
+  internalCreateStatusIncident(body: {
+    title: string;
+    summary: string;
+    severity: string;
+    affected_components: string[];
+    is_public: boolean;
+    status?: string;
+  }): Promise<Record<string, unknown>> {
+    return request(this.options, "/api/v1/internal/status/incidents", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  getPublicStatus(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/status");
+  }
+
+  internalIntegrationHealth(): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, "/api/v1/internal/integration-health");
+  }
+
+  internalLaunchChecklist(): Promise<Record<string, unknown>> {
+    return request(this.options, "/api/v1/internal/launch/checklist");
+  }
+
+  internalBusinessMetrics(): Promise<Record<string, unknown>> {
+    return request(this.options, "/api/v1/internal/business-metrics");
+  }
+
+  internalOpsMaintenanceLatest(): Promise<{
+    run: Record<string, unknown> | null;
+    signals: Array<Record<string, unknown>>;
+  }> {
+    return request(this.options, "/api/v1/internal/ops-maintenance/latest");
+  }
+
+  internalOpsMaintenanceRuns(limit = 30): Promise<Array<Record<string, unknown>>> {
+    return request(this.options, `/api/v1/internal/ops-maintenance/runs?limit=${limit}`);
+  }
+
+  internalOpsMaintenanceRun(useLlmSummary = true): Promise<{
+    run: Record<string, unknown>;
+    signals: Array<Record<string, unknown>>;
+  }> {
+    return request(this.options, "/api/v1/internal/ops-maintenance/run", {
+      method: "POST",
+      body: JSON.stringify({ use_llm_summary: useLlmSummary }),
+    });
+  }
 }
 
 export function createClient(options: ExposureFlowClientOptions) {
